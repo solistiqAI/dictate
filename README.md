@@ -8,7 +8,7 @@ your voice and your text never leave the machine.
 
 - **Fast and private:** 25 European languages (German and English included, detected per
   recording), about a tenth of a second for a sentence, no account, no cloud.
-- **Your words:** a dictionary for names and jargon, replacements (`heard => meant`), and it learns
+- **Your words:** a dictionary for names and jargon, replacements (`Solis tick => SOLISTIQ`), and it learns
   from the fixes you make right after a paste.
 - **Clean text:** spoken commands ("new paragraph", "bullet point"), filler words dropped, and
   optionally a local language model that removes self-corrections ("at three, no, at five") and
