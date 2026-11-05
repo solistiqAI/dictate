@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The floating mic button (FloatingMicService): it needs to know when a text field has focus and
+  where the keyboard is, and to put the text into the field. Nothing else is read.
+-->
+<accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
+    android:accessibilityEventTypes="typeViewFocused|typeWindowStateChanged|typeWindowsChanged|typeViewTextSelectionChanged"
+    android:accessibilityFeedbackType="feedbackGeneric"
+    android:accessibilityFlags="flagRetrieveInteractiveWindows"
+    android:canRetrieveWindowContent="true"
+    android:description="@string/button_service_description"
+    android:notificationTimeout="80"
+    android:settingsActivity="app.dictate.MainActivity" />

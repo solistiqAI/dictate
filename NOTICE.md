@@ -17,6 +17,11 @@ Dictate itself is MIT licensed (`LICENSE`). It includes or downloads the followi
 | [llama.cpp](https://github.com/ggml-org/llama.cpp) via `llama-cpp-2` | Gemma for "Korrigieren"/"Formatieren" | MIT |
 | [ONNX Runtime](https://github.com/microsoft/onnxruntime) via `ort` | speech models on the CPU/GPU | MIT |
 | Rust crates (see `Cargo.lock`; `cargo license` lists them) and npm packages for the page (`ui/package-lock.json`) | | their own, MIT/Apache-2.0 mostly |
+| [ONNX Runtime for Android](https://central.sonatype.com/artifact/com.microsoft.onnxruntime/onnxruntime-android) (`onnxruntime-android` AAR) | the Android app's speech model | MIT |
+| [Jetpack Compose](https://developer.android.com/jetpack/compose), AndroidX Activity | the Android app's screens | Apache-2.0 |
+| [Material icons](https://github.com/google/material-design-icons) (mic, stop, backspace, enter, keyboard, copy) as vector drawables in `android/app/src/main/res/drawable/` | the Android keyboard and screens | Apache-2.0 |
+| [Gradle wrapper](https://gradle.org) (`android/gradlew`, `android/gradle/wrapper/`) | building the Android app | Apache-2.0 |
+| [Robolectric](https://robolectric.org), [Roborazzi](https://github.com/takahirom/roborazzi), JUnit (tests only) | the Android app's tests and screenshots | MIT, Apache-2.0, EPL-1.0 |
 
 ## Models (downloaded on demand, never part of the repository or the app)
 

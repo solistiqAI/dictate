@@ -429,10 +429,10 @@ fn environment() -> Result<Environment> {
     if let Some(env) = ENVIRONMENT.get() {
         return Ok(env.clone());
     }
-    // The Linux build loads the library itself (`load-dynamic`): find it first.
-    #[cfg(target_os = "linux")]
+    // The Linux and Android builds load the library themselves (`load-dynamic`): find it first.
+    #[cfg(any(target_os = "linux", target_os = "android"))]
     let builder = crate::onnxruntime::init()?;
-    #[cfg(not(target_os = "linux"))]
+    #[cfg(not(any(target_os = "linux", target_os = "android")))]
     let builder = parakeet_rs::ort::init();
     let env = builder.build().context("start ONNX Runtime")?;
     Ok(ENVIRONMENT.get_or_init(|| env).clone())

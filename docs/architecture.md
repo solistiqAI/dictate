@@ -5,6 +5,12 @@ Windows and Linux betas); `dictate-core`
 (`core/`) is the platform-free part, re-exported by the app under the same module names
 (`crate::vocab::…`), which builds and tests on Linux too.
 
+A third member, `dictate-android` (`android/rust/`, not a default member), wraps `dictate-core`
+for the Android app in `android/` (Kotlin + Compose): a cdylib behind JNI that Gradle builds with
+cargo-ndk. The phone runs the same recognition, dictionary and commands as the desktop, with
+ONNX Runtime from Microsoft's Android AAR loaded at run time as on Linux. Details:
+[`docs/android.md`](android.md).
+
 `core/src/` (dictate-core, no macOS):
 
 - `trigger.rs`: trigger parsing and the hold/toggle/hybrid state machine; `hook.rs`: the same
@@ -12,7 +18,7 @@ Windows and Linux betas); `dictate-core`
   the same hook, the X11 grabs, the autostart entry, locale and OS name.
 - `audio.rs`: WAV/FLAC reading, resampling to 16 kHz (rubato).
 - `asr.rs`: the known models, download (curl, resumable), `Asr` (loads whatever family a folder holds), `transcribe_file`.
-- `onnxruntime.rs`: where the Linux build loads ONNX Runtime from (`ORT_DYLIB_PATH`, else the data folder, else next to the executable) and `model download onnxruntime` (the pinned GitHub release, sha256-checked).
+- `onnxruntime.rs`: where the Linux and Android builds load ONNX Runtime from (`ORT_DYLIB_PATH`, else the data folder, else next to the executable) and `model download onnxruntime` (the pinned GitHub release, sha256-checked).
 - `engine.rs`: one engine per model family behind a trait (Parakeet TDT, CTC, Nemotron, Unified,
   Cohere; all parakeet-rs on ONNX Runtime, CPU); decoder dictionary and language are optional per
   family. The Neural Engine family is the app's and plugs in with `engine::register_ane`.

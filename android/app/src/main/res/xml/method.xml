@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The voice keyboard (DictateKeyboard). Its one subtype is of mode "voice": that makes it the
+  input method other keyboards' mic keys hand off to (AOSP keyboards, HeliBoard, FlorisBoard ask
+  InputMethodManager.getShortcutInputMethodsAndSubtypes()). No locale: Parakeet detects the language.
+-->
+<input-method xmlns:android="http://schemas.android.com/apk/res/android"
+    android:settingsActivity="app.dictate.MainActivity"
+    android:supportsSwitchingToNextInputMethod="true">
+    <subtype
+        android:imeSubtypeMode="voice"
+        android:imeSubtypeLocale=""
+        android:label="@string/keyboard_name" />
+</input-method>

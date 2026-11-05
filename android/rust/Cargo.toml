@@ -1,0 +1,15 @@
+[package]
+name = "dictate-android"
+version = "0.2.0"
+edition = "2024"
+license = "MIT"
+description = "Dictate on Android: dictate-core behind JNI for the app in android/ (docs/android.md)."
+
+# cdylib: libdictate_android.so for the APK (cargo-ndk); rlib: the host tests.
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+anyhow = "1.0.104"
+dictate-core = { path = "../../core" }
+jni = { version = "0.21.1", default-features = false }

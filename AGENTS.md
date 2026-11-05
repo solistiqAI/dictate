@@ -13,7 +13,7 @@ is pasted at the cursor. macOS app; Windows and Linux as untested betas. Public,
 
 ## Workspace: what needs a Mac and what does not
 
-A Cargo workspace of two crates (`docs/architecture.md`):
+A Cargo workspace of two crates (`docs/architecture.md`), plus the Android app's JNI crate:
 
 - **`dictate-core`** (`core/`): the platform-free part: models and `Asr` on the CPU (parakeet-rs/ONNX
   Runtime), engines, VAD, the dictionary and the profile (`profile.rs`, `profiles/`), replacements,
@@ -26,6 +26,12 @@ A Cargo workspace of two crates (`docs/architecture.md`):
   voices, Souffleur. OS code in `src/platform/` (`macos/`, `windows/`, `linux/`). It re-exports the
   core's modules under their old names, so `crate::vocab::…` still works there. Builds on macOS, and
   for Windows and Linux as untested betas (below).
+- **`dictate-android`** (`android/rust/`, workspace member, not a default one): `dictate-core`
+  behind JNI for the Android app in `android/` (Kotlin + Compose, Gradle; `docs/android.md`).
+  `cargo test --release -p dictate-android` runs on any host without the NDK; the phone's build is
+  Gradle's `buildRust` task (cargo-ndk). Android code stays in `android/`; the core only gets
+  `cfg(target_os = "android")` next to the Linux ones. Say in the PR what was built and run (APK,
+  phone) and what was not.
 
 On Linux:
 

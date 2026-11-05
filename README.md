@@ -26,7 +26,9 @@ for macOS; Windows and Linux are in beta.
 
 **Platforms:** macOS 14 or later (Apple silicon for the Neural Engine; other Macs use the CPU).
 Windows 10/11 and Linux (X11, Wayland) are betas: they build and have the whole dictation loop,
-but have not run on real hardware yet ([below](#windows-and-linux-beta)). MIT licensed.
+but have not run on real hardware yet ([below](#windows-and-linux-beta)). An Android app (a voice
+keyboard, and transcribing shared voice messages) is in the works: [below](#android-beta). MIT
+licensed.
 
 ## Install
 
@@ -74,6 +76,16 @@ there is no installer: you build the binary and start it. In short:
   `dictate`. Packages, Wayland setup and details: [`docs/linux.md`](docs/linux.md).
 
 Reports from a first run are very welcome.
+
+### Android (beta)
+
+`android/` is an Android app with the same recognition on the phone (`dictate-core` through JNI,
+Parakeet Ultra int8 on the CPU): a floating mic button above any keyboard (Gboard too), a voice
+input method that your keyboard's mic key opens (HeliBoard), and a share target that turns voice
+messages from WhatsApp and other messengers into text. Nothing leaves the
+phone but the model download. It has not been built into an APK or run on a phone yet. Build a
+debug APK with the Android SDK, the NDK and `cargo-ndk` (`cd android && ./gradlew assembleDebug`),
+install it with `adb install`: [`docs/android.md`](docs/android.md).
 
 ## Using it
 

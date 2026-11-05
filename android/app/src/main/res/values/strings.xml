@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name" translatable="false">Dictate</string>
+    <string name="keyboard_name">Dictate (voice)</string>
+    <string name="share_label">Transcribe with Dictate</string>
+    <string name="tagline">Speak instead of typing, transcribed on this phone. No audio or text leaves it.</string>
+
+    <!-- Setup -->
+    <string name="setup_title">Set up</string>
+    <string name="setup_mic">Microphone</string>
+    <string name="setup_mic_ok">Allowed</string>
+    <string name="setup_mic_missing">The keyboard records only while you hold or tap its button.</string>
+    <string name="setup_mic_allow">Allow</string>
+    <string name="setup_model">Speech model</string>
+    <string name="setup_model_ok">Downloaded, runs on this phone</string>
+    <string name="setup_model_missing">Parakeet Ultra (int8), %1$s, downloaded once.</string>
+    <string name="setup_model_missing_unknown">Parakeet Ultra (int8), about 670 MB, downloaded once.</string>
+    <string name="setup_model_metered">You are on mobile data: better use Wi-Fi.</string>
+    <string name="setup_model_download">Download</string>
+    <string name="setup_model_downloading">Downloading: %1$s of %2$s</string>
+    <string name="setup_model_cancel">Cancel</string>
+    <string name="setup_model_failed">Download failed: %1$s</string>
+    <string name="setup_model_retry">Try again</string>
+    <string name="setup_keyboard_enable">Open settings</string>
+
+    <string name="try_title">Try it</string>
+    <string name="try_hint">Tap here, then start a recording: the floating button or your keyboard\'s mic key</string>
+    <string name="messages_title">Voice messages</string>
+    <string name="messages_hint">In WhatsApp or another messenger: long-press a voice message, Share, Dictate.</string>
+
+    <string name="recent_title">Recent transcripts</string>
+    <string name="recent_empty">Nothing yet. Transcripts stay on this phone.</string>
+    <string name="recent_clear">Clear all</string>
+    <string name="source_keyboard">Keyboard</string>
+    <string name="source_message">Voice message</string>
+
+    <string name="dictionary_title">Dictionary</string>
+    <string name="dictionary_hint">Words the transcript is corrected towards: names, terms, spellings.</string>
+    <string name="dictionary_add">Add a word</string>
+    <string name="dictionary_add_button">Add</string>
+
+    <string name="copy">Copy</string>
+    <string name="share">Share</string>
+    <string name="delete">Delete</string>
+    <string name="remove_word">Remove %1$s</string>
+    <string name="copied">Copied</string>
+
+    <!-- Shared voice messages -->
+    <string name="share_title">Voice messages</string>
+    <string name="share_message">Message %1$d</string>
+    <string name="share_waiting">Waiting</string>
+    <string name="share_decoding">Reading the audio</string>
+    <string name="share_transcribing">Transcribing %1$s s of audio</string>
+    <string name="share_failed">Could not transcribe: %1$s</string>
+    <string name="share_empty">No speech found.</string>
+    <string name="share_copy_all">Copy all</string>
+    <string name="share_none">No audio came with this share.</string>
+    <string name="share_needs_model">Download the speech model in Dictate first.</string>
+    <string name="share_open_app">Open Dictate</string>
+
+    <!-- Keyboard -->
+    <string name="keyboard_hint">Hold to talk, or tap to start and stop</string>
+    <string name="keyboard_listening">Listening</string>
+    <string name="keyboard_transcribing">Transcribing</string>
+    <string name="keyboard_loading">Loading the speech model</string>
+    <string name="keyboard_needs_mic">Tap to allow the microphone in Dictate</string>
+    <string name="keyboard_needs_model">Tap to download the speech model in Dictate</string>
+    <string name="keyboard_mic_failed">The microphone did not start</string>
+    <string name="keyboard_mic">Dictate</string>
+    <string name="keyboard_backspace">Delete</string>
+    <string name="keyboard_space">Space</string>
+    <string name="keyboard_enter">Enter</string>
+    <string name="keyboard_switch">Next keyboard</string>
+
+    <string name="download_title">Dictate speech model</string>
+
+    <!-- How a recording starts -->
+    <string name="start_title">Start recording with</string>
+    <string name="start_button">Floating button</string>
+    <string name="start_button_about">A small mic button above any keyboard, Gboard too.</string>
+    <string name="start_keyboard">My keyboard\'s mic key</string>
+    <string name="start_keyboard_about">For HeliBoard (and FlorisBoard, AOSP): its mic key opens Dictate, which listens, types and goes back.</string>
+    <string name="start_both">Both</string>
+    <string name="setup_button">Floating button</string>
+    <string name="setup_button_off">Turn on \"Dictate button\" under Accessibility (installed apps). Greyed out? App info, ⋮, \"Allow restricted settings\", then again.</string>
+    <string name="setup_button_ok">On: it shows above the keyboard in text fields</string>
+    <string name="setup_button_open">Accessibility settings</string>
+    <string name="setup_app_info">App info</string>
+    <string name="setup_voice">Voice input for your keyboard</string>
+    <string name="setup_voice_off">Turn on \"Dictate (voice)\" in the keyboard settings. Your keyboard\'s mic key then opens it.</string>
+    <string name="setup_voice_ok">Your keyboard\'s mic key opens Dictate. Try it below.</string>
+    <string name="setup_voice_other">Your keyboard\'s mic key opens %1$s. Turn that off in the keyboard settings so it opens Dictate.</string>
+    <string name="setup_voice_none">On. Use a keyboard with a mic key that hands off to voice input, such as HeliBoard.</string>
+    <string name="setup_get_heliboard">Get HeliBoard</string>
+    <string name="timing">Last transcription: %1$s s of audio in %2$s s</string>
+
+    <!-- Floating button and voice input -->
+    <string name="button_service_name">Dictate button</string>
+    <string name="button_service_description">Shows a microphone button above the keyboard when a text field has focus. Tap it, talk, tap again: Dictate transcribes on this phone and puts the text into the field. To do that it needs to see which field has focus and where the keyboard is; nothing else is read, kept or sent.</string>
+    <string name="button_copied">Copied: paste it where you want it</string>
+    <string name="keyboard_nothing">Nothing heard</string>
+    <string name="mic_channel">Recording</string>
+    <string name="mic_notification">Dictate is listening</string>
+    <string name="mic_stop">Stop</string>
+</resources>
