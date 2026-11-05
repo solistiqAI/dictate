@@ -20,7 +20,7 @@ class Decoded(val samples: FloatArray, val rate: Int) {
 object AudioDecoder {
     private const val TIMEOUT_US = 10_000L
 
-    /** Longer messages are cut here: the samples of 15 minutes at 48 kHz take 170 MB already. */
+    /** Longer messages are cut here (15 minutes at 16 kHz: 58 MB of samples). */
     const val MAX_SECONDS = 15 * 60
 
     fun decode(context: Context, uri: Uri): Decoded {
@@ -56,6 +56,9 @@ object AudioDecoder {
         var inputDone = false
         var shorts = ShortArray(0)
         var floats = FloatArray(0)
+        // The rate is known for sure only with the first output format; until then, the input's.
+        var factor = Decimator.factorFor(rate)
+        var decimator = Decimator(factor, out)
         while (true) {
             if (!inputDone) {
                 val index = codec.dequeueInputBuffer(TIMEOUT_US)
@@ -80,6 +83,10 @@ object AudioDecoder {
                     if (format.containsKey(MediaFormat.KEY_PCM_ENCODING)) {
                         encoding = format.getInteger(MediaFormat.KEY_PCM_ENCODING)
                     }
+                    if (out.size == 0) {
+                        factor = Decimator.factorFor(rate)
+                        decimator = Decimator(factor, out)
+                    }
                 }
                 index >= 0 -> {
                     val buffer = codec.getOutputBuffer(index)!!.order(ByteOrder.nativeOrder())
@@ -90,20 +97,20 @@ object AudioDecoder {
                         val n = view.remaining()
                         if (floats.size < n) floats = FloatArray(n)
                         view.get(floats, 0, n)
-                        Pcm.addInterleaved(floats, n, channels, out)
+                        Pcm.addInterleaved(floats, n, channels, decimator::add)
                     } else {
                         val view = buffer.asShortBuffer()
                         val n = view.remaining()
                         if (shorts.size < n) shorts = ShortArray(n)
                         view.get(shorts, 0, n)
-                        Pcm.addInterleaved(shorts, n, channels, out)
+                        Pcm.addInterleaved(shorts, n, channels, decimator::add)
                     }
                     codec.releaseOutputBuffer(index, false)
                     if (info.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0) break
-                    if (out.size > MAX_SECONDS.toLong() * rate) break
+                    if (out.size > MAX_SECONDS.toLong() * (rate / factor)) break
                 }
             }
         }
-        return Decoded(out.toArray(), rate)
+        return Decoded(out.toArray(), rate / factor)
     }
 }

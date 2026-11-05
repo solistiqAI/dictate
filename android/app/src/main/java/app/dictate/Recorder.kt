@@ -6,6 +6,7 @@ import android.content.pm.PackageManager
 import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaRecorder
+import android.os.Build
 
 /** One recording from the microphone: 16 kHz mono, as the model takes it. */
 class Recorder {
@@ -28,15 +29,23 @@ class Recorder {
         val min = AudioRecord.getMinBufferSize(RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)
         if (min <= 0) return false
         val record = try {
-            AudioRecord(
+            val builder = AudioRecord.Builder()
                 // Tuned for speech recognition: no automatic gain, no noise suppression.
-                MediaRecorder.AudioSource.VOICE_RECOGNITION,
-                RATE,
-                AudioFormat.CHANNEL_IN_MONO,
-                AudioFormat.ENCODING_PCM_16BIT,
-                maxOf(min, RATE / 2 * 2),
-            )
+                .setAudioSource(MediaRecorder.AudioSource.VOICE_RECOGNITION)
+                .setAudioFormat(
+                    AudioFormat.Builder()
+                        .setSampleRate(RATE)
+                        .setChannelMask(AudioFormat.CHANNEL_IN_MONO)
+                        .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                        .build(),
+                )
+                .setBufferSizeInBytes(maxOf(min, RATE / 2 * 2))
+            // A speech recognition service records for the app that asked: its attribution.
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) builder.setContext(context)
+            builder.build()
         } catch (e: SecurityException) {
+            return false
+        } catch (e: UnsupportedOperationException) {
             return false
         } catch (e: IllegalArgumentException) {
             return false

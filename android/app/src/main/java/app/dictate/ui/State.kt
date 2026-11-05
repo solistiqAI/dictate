@@ -1,5 +1,6 @@
 package app.dictate.ui
 
+import app.dictate.StartWith
 import app.dictate.Transcript
 
 /** What the speech model's card shows. */
@@ -18,13 +19,18 @@ sealed interface ModelState {
 data class MainState(
     val micGranted: Boolean,
     val model: ModelState,
+    val startWith: StartWith,
+    /** The floating button's accessibility service is on. */
+    val buttonOn: Boolean,
+    /** Dictate (voice) is an enabled input method. */
     val keyboardEnabled: Boolean,
-    val keyboardChosen: Boolean,
+    /** What other keyboards' mic key opens: its name, and whether that is Dictate; null: nothing. */
+    val micKeyOpens: Pair<String, Boolean>?,
     val transcripts: List<Transcript>,
     val words: List<String>,
-) {
-    val ready: Boolean get() = micGranted && model == ModelState.Ready && keyboardEnabled && keyboardChosen
-}
+    /** The last transcription: seconds of audio and of work, for measuring on the phone. */
+    val timing: Pair<Float, Float>? = null,
+)
 
 /** One shared voice message on its way to text. */
 sealed interface MessageState {

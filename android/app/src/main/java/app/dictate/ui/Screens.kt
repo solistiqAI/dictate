@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -16,6 +17,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.selection.SelectionContainer
@@ -37,6 +40,7 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -50,14 +54,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import app.dictate.R
+import app.dictate.StartWith
 import app.dictate.Transcript
 import app.dictate.formatSize
 import java.text.DateFormat
 import java.util.Date
+import java.util.Locale
 import kotlin.math.roundToInt
 
 /** What the app screen's buttons do; the activity fills it in, previews leave it empty. */
@@ -66,7 +73,10 @@ class MainActions(
     val download: () -> Unit = {},
     val cancelDownload: () -> Unit = {},
     val enableKeyboard: () -> Unit = {},
-    val chooseKeyboard: () -> Unit = {},
+    val startWith: (StartWith) -> Unit = {},
+    val openAccessibility: () -> Unit = {},
+    val openAppInfo: () -> Unit = {},
+    val getHeliBoard: () -> Unit = {},
     val copy: (String) -> Unit = {},
     val share: (String) -> Unit = {},
     val delete: (Transcript) -> Unit = {},
@@ -75,13 +85,14 @@ class MainActions(
     val removeWord: (String) -> Unit = {},
 )
 
-/** The app screen: setup, a field to try the keyboard, recent transcripts, the dictionary. */
+/** The app screen: setup, a field to try it, recent transcripts, the dictionary. */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun MainScreen(state: MainState, actions: MainActions = MainActions()) {
     Scaffold { padding ->
         LazyColumn(
             // Edge to edge: the list makes room for the keyboard itself (the try field, new words).
-            modifier = Modifier.fillMaxSize().padding(padding).imePadding(),
+            modifier = Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding).imePadding(),
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
@@ -89,7 +100,10 @@ fun MainScreen(state: MainState, actions: MainActions = MainActions()) {
             item { Section(stringResource(R.string.setup_title)) }
             item { MicStep(state.micGranted, actions) }
             item { ModelStep(state.model, actions) }
-            item { KeyboardStep(state.keyboardEnabled, state.keyboardChosen, actions) }
+            item { Section(stringResource(R.string.start_title)) }
+            item { StartChoice(state.startWith, actions) }
+            if (state.startWith.button) item { ButtonStep(state.buttonOn, actions) }
+            if (state.startWith.keyboard) item { VoiceStep(state.keyboardEnabled, state.micKeyOpens, actions) }
             item { Section(stringResource(R.string.try_title)) }
             item { TryField() }
             item {
@@ -109,6 +123,17 @@ fun MainScreen(state: MainState, actions: MainActions = MainActions()) {
             items(state.transcripts, key = { "${it.time}-${it.text.hashCode()}" }) { TranscriptCard(it, actions) }
             item { Section(stringResource(R.string.dictionary_title)) }
             item { Dictionary(state.words, actions) }
+            state.timing?.let { (audio, work) ->
+                item {
+                    Muted(
+                        stringResource(
+                            R.string.timing,
+                            String.format(Locale.getDefault(), "%.1f", audio),
+                            String.format(Locale.getDefault(), "%.2f", work),
+                        ),
+                    )
+                }
+            }
         }
     }
 }
@@ -241,19 +266,64 @@ private fun ModelStep(model: ModelState, actions: MainActions) {
     }
 }
 
+/** Floating button, keyboard mic key, or both: radio rows with a line each. */
 @Composable
-private fun KeyboardStep(enabled: Boolean, chosen: Boolean, actions: MainActions) {
-    val title = stringResource(R.string.setup_keyboard)
+private fun StartChoice(chosen: StartWith, actions: MainActions) {
+    Column(Modifier.selectableGroup()) {
+        StartRow(StartWith.BUTTON, chosen, R.string.start_button, R.string.start_button_about, actions)
+        StartRow(StartWith.KEYBOARD, chosen, R.string.start_keyboard, R.string.start_keyboard_about, actions)
+        StartRow(StartWith.BOTH, chosen, R.string.start_both, null, actions)
+    }
+}
+
+@Composable
+private fun StartRow(value: StartWith, chosen: StartWith, title: Int, about: Int?, actions: MainActions) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .selectable(selected = value == chosen, onClick = { actions.startWith(value) }, role = Role.RadioButton)
+            .padding(vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        RadioButton(selected = value == chosen, onClick = null)
+        Spacer(Modifier.width(12.dp))
+        Column {
+            Text(stringResource(title), style = MaterialTheme.typography.bodyLarge)
+            if (about != null) Muted(stringResource(about))
+        }
+    }
+}
+
+@Composable
+private fun ButtonStep(on: Boolean, actions: MainActions) {
+    Step(
+        stringResource(R.string.setup_button),
+        on,
+        stringResource(if (on) R.string.setup_button_ok else R.string.setup_button_off),
+    ) {
+        if (!on) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = actions.openAccessibility) { Text(stringResource(R.string.setup_button_open)) }
+                OutlinedButton(onClick = actions.openAppInfo) { Text(stringResource(R.string.setup_app_info)) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun VoiceStep(enabled: Boolean, opens: Pair<String, Boolean>?, actions: MainActions) {
+    val title = stringResource(R.string.setup_voice)
     when {
-        !enabled -> Step(title, false, stringResource(R.string.setup_keyboard_off)) {
+        !enabled -> Step(title, false, stringResource(R.string.setup_voice_off)) {
             Button(onClick = actions.enableKeyboard) { Text(stringResource(R.string.setup_keyboard_enable)) }
         }
-        !chosen -> Step(title, false, stringResource(R.string.setup_keyboard_not_chosen)) {
-            Button(onClick = actions.chooseKeyboard) { Text(stringResource(R.string.setup_keyboard_choose)) }
+        opens == null -> Step(title, false, stringResource(R.string.setup_voice_none)) {
+            OutlinedButton(onClick = actions.getHeliBoard) { Text(stringResource(R.string.setup_get_heliboard)) }
         }
-        else -> Step(title, true, stringResource(R.string.setup_keyboard_ok)) {
-            TextButton(onClick = actions.chooseKeyboard) { Text(stringResource(R.string.setup_keyboard_choose)) }
+        !opens.second -> Step(title, false, stringResource(R.string.setup_voice_other, opens.first)) {
+            Button(onClick = actions.enableKeyboard) { Text(stringResource(R.string.setup_keyboard_enable)) }
         }
+        else -> Step(title, true, stringResource(R.string.setup_voice_ok))
     }
 }
 

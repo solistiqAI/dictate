@@ -26,7 +26,7 @@ class VoiceMessages(
                 post(index, MessageState.Decoding)
                 val decoded = try {
                     AudioDecoder.decode(app, uri)
-                } catch (e: Exception) {
+                } catch (e: Throwable) { // OutOfMemoryError included: say so instead of crashing
                     post(index, MessageState.Failed(Engine.describe(e)))
                     return@execute
                 }

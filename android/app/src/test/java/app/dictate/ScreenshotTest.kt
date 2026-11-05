@@ -1,5 +1,6 @@
 package app.dictate
 
+import android.os.Looper
 import android.view.ViewGroup
 import androidx.activity.ComponentActivity
 import app.dictate.ui.DictateTheme
@@ -13,6 +14,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
@@ -27,8 +29,10 @@ class ScreenshotTest {
     private val firstStart = MainState(
         micGranted = false,
         model = ModelState.Missing(bytes = 670_310_000, metered = true),
+        startWith = StartWith.BUTTON,
+        buttonOn = false,
         keyboardEnabled = false,
-        keyboardChosen = false,
+        micKeyOpens = null,
         transcripts = emptyList(),
         words = listOf("Claude", "Codex", "GitHub", "Pull Request", "Commit", "Deploy"),
     )
@@ -36,13 +40,16 @@ class ScreenshotTest {
     private val ready = MainState(
         micGranted = true,
         model = ModelState.Ready,
+        startWith = StartWith.BOTH,
+        buttonOn = true,
         keyboardEnabled = true,
-        keyboardChosen = true,
+        micKeyOpens = "Dictate (voice)" to true,
         transcripts = listOf(
             Transcript(1_762_350_000_000, Transcript.Source.MESSAGE, "Kannst du mir bitte die Rechnung von letzter Woche noch einmal schicken?"),
             Transcript(1_762_340_000_000, Transcript.Source.KEYBOARD, "Bin in zehn Minuten da, fang schon mal ohne mich an."),
         ),
         words = listOf("Claude", "GitHub", "Pull Request", "Wombat"),
+        timing = 4.2f to 0.85f,
     )
 
     @Test
@@ -54,6 +61,21 @@ class ScreenshotTest {
     fun main_downloading() = captureRoboImage("$DIR/main-downloading.png") {
         DictateTheme(dynamic = false) {
             MainScreen(firstStart.copy(micGranted = true, model = ModelState.Downloading(212_000_000, 670_310_000)))
+        }
+    }
+
+    @Test
+    fun main_keyboard_path() = captureRoboImage("$DIR/main-keyboard-path.png") {
+        DictateTheme(dynamic = false) {
+            MainScreen(
+                firstStart.copy(
+                    micGranted = true,
+                    model = ModelState.Ready,
+                    startWith = StartWith.KEYBOARD,
+                    keyboardEnabled = true,
+                    micKeyOpens = "Google voice typing" to false,
+                ),
+            )
         }
     }
 
@@ -96,6 +118,8 @@ class ScreenshotTest {
             keyboard,
             ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT),
         )
+        // Let the layout pass run before the picture.
+        shadowOf(Looper.getMainLooper()).idle()
         keyboard.captureRoboImage(path)
     }
 

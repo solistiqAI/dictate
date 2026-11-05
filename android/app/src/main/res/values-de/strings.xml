@@ -19,15 +19,10 @@
     <string name="setup_model_cancel">Abbrechen</string>
     <string name="setup_model_failed">Download fehlgeschlagen: %1$s</string>
     <string name="setup_model_retry">Nochmal versuchen</string>
-    <string name="setup_keyboard">Tastatur</string>
-    <string name="setup_keyboard_off">Schalte „Dictate (Sprache)“ in den Tastatur-Einstellungen ein.</string>
     <string name="setup_keyboard_enable">Einstellungen öffnen</string>
-    <string name="setup_keyboard_not_chosen">Eingeschaltet. Wechsle in einem Textfeld zu ihr, oder hier.</string>
-    <string name="setup_keyboard_choose">Tastatur wechseln</string>
-    <string name="setup_keyboard_ok">Eingeschaltet und gewählt</string>
 
     <string name="try_title">Ausprobieren</string>
-    <string name="try_hint">Hier tippen, dann das Mikrofon halten und sprechen</string>
+    <string name="try_hint">Hier tippen, dann eine Aufnahme starten: schwebende Taste oder Mikrofon-Taste deiner Tastatur</string>
     <string name="messages_title">Sprachnachrichten</string>
     <string name="messages_hint">In WhatsApp oder einem anderen Messenger: Sprachnachricht lange drücken, Teilen, Dictate.</string>
 
@@ -74,4 +69,31 @@
     <string name="keyboard_switch">Nächste Tastatur</string>
 
     <string name="download_title">Dictate-Sprachmodell</string>
+
+    <string name="start_title">Aufnahme starten mit</string>
+    <string name="start_button">Schwebende Taste</string>
+    <string name="start_button_about">Eine kleine Mikrofon-Taste über jeder Tastatur, auch Gboard.</string>
+    <string name="start_keyboard">Mikrofon-Taste meiner Tastatur</string>
+    <string name="start_keyboard_about">Für HeliBoard (und FlorisBoard, AOSP): deren Mikrofon-Taste öffnet Dictate, das zuhört, schreibt und zurückwechselt.</string>
+    <string name="start_both">Beides</string>
+    <string name="setup_button">Schwebende Taste</string>
+    <string name="setup_button_off">Schalte „Dictate-Taste“ unter Bedienungshilfen (installierte Apps) ein. Ausgegraut? App-Info, ⋮, „Eingeschränkte Einstellungen zulassen“, dann nochmal.</string>
+    <string name="setup_button_ok">Eingeschaltet: sie erscheint in Textfeldern über der Tastatur</string>
+    <string name="setup_button_open">Bedienungshilfen</string>
+    <string name="setup_app_info">App-Info</string>
+    <string name="setup_voice">Spracheingabe für deine Tastatur</string>
+    <string name="setup_voice_off">Schalte „Dictate (Sprache)“ in den Tastatur-Einstellungen ein. Die Mikrofon-Taste deiner Tastatur öffnet es dann.</string>
+    <string name="setup_voice_ok">Die Mikrofon-Taste deiner Tastatur öffnet Dictate. Probier es unten aus.</string>
+    <string name="setup_voice_other">Die Mikrofon-Taste deiner Tastatur öffnet %1$s. Schalte das in den Tastatur-Einstellungen aus, dann öffnet sie Dictate.</string>
+    <string name="setup_voice_none">Eingeschaltet. Nimm eine Tastatur, deren Mikrofon-Taste an die Spracheingabe übergibt, etwa HeliBoard.</string>
+    <string name="setup_get_heliboard">HeliBoard holen</string>
+    <string name="timing">Zuletzt: %1$s s Ton in %2$s s abgeschrieben</string>
+
+    <string name="button_service_name">Dictate-Taste</string>
+    <string name="button_service_description">Zeigt eine Mikrofon-Taste über der Tastatur, wenn ein Textfeld aktiv ist. Antippen, sprechen, nochmal antippen: Dictate schreibt auf diesem Handy ab und setzt den Text ins Feld. Dafür muss es sehen, welches Feld aktiv ist und wo die Tastatur liegt; sonst wird nichts gelesen, gespeichert oder gesendet.</string>
+    <string name="button_copied">Kopiert: füge es ein, wo du es brauchst</string>
+    <string name="keyboard_nothing">Nichts gehört</string>
+    <string name="mic_channel">Aufnahme</string>
+    <string name="mic_notification">Dictate hört zu</string>
+    <string name="mic_stop">Stopp</string>
 </resources>

@@ -53,7 +53,13 @@ class MicGesture(private val holdMillis: Long = 400) {
         return Action.NONE // a tap: keep recording until the next tap
     }
 
-    /** Recording ended elsewhere (an error, the keyboard closed). */
+    /** Recording started without the button (hands-free): the next press stops it. */
+    fun startedElsewhere() {
+        recording = true
+        startedByThisPress = false
+    }
+
+    /** Recording ended elsewhere (an error, the keyboard closed, silence). */
     fun reset() {
         recording = false
         startedByThisPress = false
@@ -66,4 +72,20 @@ fun formatSize(bytes: Long, locale: java.util.Locale = java.util.Locale.getDefau
     bytes >= 1_000_000 -> "${bytes / 1_000_000} MB"
     bytes >= 1_000 -> "${bytes / 1_000} kB"
     else -> "$bytes B"
+}
+
+/** Text with dictation put in at the selection, and where the cursor goes after it. */
+data class Insertion(val text: String, val cursor: Int) {
+    companion object {
+        /**
+         * [dictated] into [current] in place of the selection [start]..[end] (either -1: unknown,
+         * so at the end), joined as [Typing.join] does.
+         */
+        fun of(current: String, start: Int, end: Int, dictated: String): Insertion {
+            val from = if (start < 0 || end < 0) current.length else minOf(start, end).coerceIn(0, current.length)
+            val to = if (start < 0 || end < 0) current.length else maxOf(start, end).coerceIn(0, current.length)
+            val piece = Typing.join(current.substring(0, from), dictated)
+            return Insertion(current.substring(0, from) + piece + current.substring(to), from + piece.length)
+        }
+    }
 }

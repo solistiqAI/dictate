@@ -22,7 +22,7 @@ import app.dictate.ui.ModelState
 /** The app screen: setup (microphone, model, keyboard), try it, recent transcripts, dictionary. */
 class MainActivity : ComponentActivity() {
     private var state by mutableStateOf(
-        MainState(false, ModelState.Missing(null, false), false, false, emptyList(), emptyList()),
+        MainState(false, ModelState.Missing(null, false), StartWith.BUTTON, false, false, null, emptyList(), emptyList()),
     )
     private lateinit var download: ModelDownload
     private val main = Handler(Looper.getMainLooper())
@@ -55,7 +55,13 @@ class MainActivity : ComponentActivity() {
                 refresh()
             },
             enableKeyboard = { Setup.openKeyboardSettings(this) },
-            chooseKeyboard = { Setup.pickKeyboard(this) },
+            startWith = {
+                Settings(this).startWith = it
+                refresh()
+            },
+            openAccessibility = { Setup.openAccessibilitySettings(this) },
+            openAppInfo = { Setup.openAppInfo(this) },
+            getHeliBoard = { Setup.openHeliBoard(this) },
             copy = ::copy,
             share = { Setup.share(this, it) },
             delete = {
@@ -113,10 +119,13 @@ class MainActivity : ComponentActivity() {
         state = MainState(
             micGranted = Setup.micGranted(this),
             model = model,
+            startWith = Settings(this).startWith,
+            buttonOn = Setup.buttonServiceOn(this),
             keyboardEnabled = Setup.keyboardEnabled(this),
-            keyboardChosen = Setup.keyboardChosen(this),
+            micKeyOpens = Setup.micKeyOpens(this),
             transcripts = AppFiles(this).transcripts.all(),
             words = words(),
+            timing = Engine.lastTiming?.let { it.audioSeconds to it.millis / 1000f },
         )
     }
 

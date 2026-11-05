@@ -35,21 +35,15 @@ class KeyboardView(context: Context, private val listener: Listener) : LinearLay
         fun onSwitchLong()
     }
 
-    enum class Mode { IDLE, RECORDING, BUSY, SETUP }
-
     private val dark = (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
         Configuration.UI_MODE_NIGHT_YES
     private val background = if (dark) 0xFF1B1F22.toInt() else 0xFFE8ECEF.toInt()
     private val keyColor = if (dark) 0xFF33393D.toInt() else Color.WHITE
     private val ink = if (dark) 0xFFE6E9EB.toInt() else 0xFF1B1F22.toInt()
     private val subtle = if (dark) 0xFFA4ABB0.toInt() else 0xFF5B6368.toInt()
-    private val accent = 0xFF2F6BDB.toInt()
-    private val recording = 0xFFD7372F.toInt()
-    private val busy = if (dark) 0xFF4A5156.toInt() else 0xFFB7BEC3.toInt()
 
     private val status = TextView(context)
-    private val micRing = View(context)
-    private val mic = ImageView(context)
+    private val mic = MicButton(context, 72)
     private val repeat = Handler(Looper.getMainLooper())
 
     init {
@@ -86,42 +80,21 @@ class KeyboardView(context: Context, private val listener: Listener) : LinearLay
         bottom.addView(enter, keyParams(48, 1f))
         addView(bottom, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply { topMargin = dp(6) })
 
-        show(Mode.IDLE, context.getString(R.string.keyboard_hint))
+        show(MicButton.Mode.IDLE, context.getString(R.string.keyboard_hint))
     }
 
     /** The button's look and the line above it. */
-    fun show(mode: Mode, message: String) {
+    fun show(mode: MicButton.Mode, message: String) {
         status.text = message
-        val color = when (mode) {
-            Mode.IDLE, Mode.SETUP -> accent
-            Mode.RECORDING -> recording
-            Mode.BUSY -> busy
-        }
-        (mic.background as GradientDrawable).setColor(color)
-        mic.setImageResource(if (mode == Mode.RECORDING) R.drawable.ic_stop else R.drawable.ic_mic)
-        mic.alpha = if (mode == Mode.SETUP) 0.6f else 1f
-        (micRing.background as GradientDrawable).setColor(color and 0x00FFFFFF or 0x40000000)
-        if (mode != Mode.RECORDING) level(0f)
+        mic.show(mode)
     }
 
     /** The ring around the button grows with the voice, 0 to 1. */
-    fun level(value: Float) {
-        val scale = 1f + 0.35f * value.coerceIn(0f, 1f)
-        micRing.scaleX = scale
-        micRing.scaleY = scale
-    }
+    fun level(value: Float) = mic.level(value)
 
     @SuppressLint("ClickableViewAccessibility")
     private fun micButton(): View {
-        val frame = FrameLayout(context)
-        micRing.background = GradientDrawable().apply { shape = GradientDrawable.OVAL }
-        frame.addView(micRing, FrameLayout.LayoutParams(dp(88), dp(88), Gravity.CENTER))
-        mic.background = GradientDrawable().apply { shape = GradientDrawable.OVAL }
-        mic.scaleType = ImageView.ScaleType.CENTER
-        mic.imageTintList = ColorStateList.valueOf(Color.WHITE)
-        mic.contentDescription = context.getString(R.string.keyboard_mic)
-        mic.isClickable = true
-        mic.setOnTouchListener { view, event ->
+        mic.icon.setOnTouchListener { view, event ->
             when (event.actionMasked) {
                 MotionEvent.ACTION_DOWN -> {
                     view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
@@ -135,8 +108,7 @@ class KeyboardView(context: Context, private val listener: Listener) : LinearLay
             }
             true
         }
-        frame.addView(mic, FrameLayout.LayoutParams(dp(72), dp(72), Gravity.CENTER))
-        return frame
+        return mic
     }
 
     private fun key(icon: Int?, label: Int): View {

@@ -53,6 +53,9 @@ android {
         abortOnError = true
         // Needs the network and is about upgrades, not about this code.
         disable += setOf("GradleDependency", "NewerVersionAvailable", "AndroidGradlePluginVersion")
+        // About the Play Store's yearly target level (from the date and the SDKs installed); not
+        // published there, and the level follows the pinned AGP.
+        disable += setOf("ExpiredTargetSdkVersion", "OldTargetApi")
     }
 }
 
@@ -92,10 +95,19 @@ val buildRust by tasks.registering(Exec::class) {
     inputs.dir(rustDir.resolve("src"))
     inputs.file(rustDir.resolve("Cargo.toml"))
     inputs.dir(rootProject.projectDir.resolve("../core/src"))
+    inputs.dir(rootProject.projectDir.resolve("../vendor/parakeet-rs/src"))
     inputs.file(rootProject.projectDir.resolve("../Cargo.lock"))
     inputs.property("abis", abis)
     outputs.dir(rustOut)
     val targets = abis.flatMap { listOf("-t", it) }
+    // cargo-ndk finds the NDK through ANDROID_NDK_HOME / ANDROID_HOME; Android Studio may set
+    // neither, so hand it the one Gradle knows when it is installed.
+    doFirst {
+        if (System.getenv("ANDROID_NDK_HOME") == null) {
+            runCatching { android.ndkDirectory }.getOrNull()?.takeIf { it.exists() }
+                ?.let { environment("ANDROID_NDK_HOME", it.path) }
+        }
+    }
     commandLine(
         listOf("cargo", "ndk") + targets +
             listOf("--platform", "29", "-o", rustOut.get().asFile.path, "build", "--release", "-p", "dictate-android"),

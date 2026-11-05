@@ -14,30 +14,60 @@ class Samples(capacity: Int = 16_000 * 10) {
     fun toArray(): FloatArray = data.copyOf(size)
 }
 
+/**
+ * Averages every [factor] samples into one on the way into [out]: 48 kHz voice messages (Opus
+ * always decodes at 48 kHz) at a third of the memory. A box filter is a crude low-pass, but
+ * speech recognition does not mind; dictate-core resamples whatever rate comes.
+ */
+class Decimator(private val factor: Int, private val out: Samples) {
+    private var sum = 0f
+    private var count = 0
+
+    fun add(sample: Float) {
+        sum += sample
+        if (++count == factor) {
+            out.add(sum / factor)
+            sum = 0f
+            count = 0
+        }
+    }
+
+    companion object {
+        /** The factor that brings [rate] down to 16 kHz, 1 when it does not divide evenly. */
+        fun factorFor(rate: Int): Int = if (rate > 16_000 && rate % 16_000 == 0) rate / 16_000 else 1
+    }
+}
+
 object Pcm {
     /** 16-bit PCM to [-1, 1]. */
     fun toFloat(sample: Short): Float = sample / 32768f
 
     /** Interleaved 16-bit frames of [channels] channels, mixed down to mono, into [out]. */
-    fun addInterleaved(samples: ShortArray, count: Int, channels: Int, out: Samples) {
+    fun addInterleaved(samples: ShortArray, count: Int, channels: Int, out: Samples) =
+        addInterleaved(samples, count, channels, out::add)
+
+    fun addInterleaved(samples: ShortArray, count: Int, channels: Int, out: (Float) -> Unit) {
         require(channels >= 1) { "channels: $channels" }
         var i = 0
         while (i + channels <= count) {
             var sum = 0f
             for (c in 0 until channels) sum += toFloat(samples[i + c])
-            out.add(sum / channels)
+            out(sum / channels)
             i += channels
         }
     }
 
     /** The same for float PCM. */
-    fun addInterleaved(samples: FloatArray, count: Int, channels: Int, out: Samples) {
+    fun addInterleaved(samples: FloatArray, count: Int, channels: Int, out: Samples) =
+        addInterleaved(samples, count, channels, out::add)
+
+    fun addInterleaved(samples: FloatArray, count: Int, channels: Int, out: (Float) -> Unit) {
         require(channels >= 1) { "channels: $channels" }
         var i = 0
         while (i + channels <= count) {
             var sum = 0f
             for (c in 0 until channels) sum += samples[i + c]
-            out.add(sum / channels)
+            out(sum / channels)
             i += channels
         }
     }

@@ -80,8 +80,9 @@ Reports from a first run are very welcome.
 ### Android (beta)
 
 `android/` is an Android app with the same recognition on the phone (`dictate-core` through JNI,
-Parakeet Ultra int8 on the CPU): a voice keyboard with one big microphone button, and a share
-target that turns voice messages from WhatsApp and other messengers into text. Nothing leaves the
+Parakeet Ultra int8 on the CPU): a floating mic button above any keyboard (Gboard too), a voice
+input method that your keyboard's mic key opens (HeliBoard), and a share target that turns voice
+messages from WhatsApp and other messengers into text. Nothing leaves the
 phone but the model download. It has not been built into an APK or run on a phone yet. Build a
 debug APK with the Android SDK, the NDK and `cargo-ndk` (`cd android && ./gradlew assembleDebug`),
 install it with `adb install`: [`docs/android.md`](docs/android.md).

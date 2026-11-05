@@ -3,7 +3,10 @@ package app.dictate
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
+import android.util.Log
 import java.io.File
+import java.util.Locale
 import java.util.concurrent.Executors
 
 /** Where the app keeps its files. */
@@ -44,6 +47,13 @@ object Engine {
     var state = State.IDLE
         private set
 
+    /** The last transcription's timing, for the app screen ("4.2 s of audio in 0.85 s"). */
+    @Volatile
+    var lastTiming: Timing? = null
+        private set
+
+    class Timing(val audioSeconds: Float, val millis: Long)
+
     /** Loads the model in the background unless it is loaded; [done] gets null or the error. */
     fun prepare(context: Context, done: (String?) -> Unit = {}) {
         val files = AppFiles(context)
@@ -59,7 +69,22 @@ object Engine {
         worker.execute {
             val result = runCatching {
                 ensureLoaded(files)
-                Native.transcribe(samples, rate)
+                val started = SystemClock.elapsedRealtime()
+                val text = Native.transcribe(samples, rate)
+                val timing = Timing(samples.size.toFloat() / rate, SystemClock.elapsedRealtime() - started)
+                lastTiming = timing
+                // `adb logcat -s Dictate` on the phone: speed of the model on this CPU.
+                Log.i(
+                    TAG,
+                    String.format(
+                        Locale.ROOT,
+                        "transcribed %.1f s of audio in %d ms (%.2f x real time)",
+                        timing.audioSeconds,
+                        timing.millis,
+                        timing.millis / 1000f / timing.audioSeconds.coerceAtLeast(0.01f),
+                    ),
+                )
+                text
             }
             main.post { done(result) }
         }
@@ -83,7 +108,9 @@ object Engine {
                 System.loadLibrary("onnxruntime")
                 runtimeLoaded = true
             }
+            val started = SystemClock.elapsedRealtime()
             Native.load(files.model.path, files.data.path)
+            Log.i(TAG, "model loaded in ${SystemClock.elapsedRealtime() - started} ms")
             state = State.READY
         } catch (e: Throwable) {
             state = State.FAILED
@@ -92,4 +119,6 @@ object Engine {
     }
 
     fun describe(e: Throwable): String = e.message ?: e.javaClass.simpleName
+
+    const val TAG = "Dictate"
 }

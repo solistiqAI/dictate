@@ -4,8 +4,6 @@ import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.inputmethodservice.InputMethodService
-import android.os.Handler
-import android.os.Looper
 import android.os.SystemClock
 import android.text.InputType
 import android.view.KeyEvent
@@ -14,24 +12,18 @@ import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 
 /**
- * The voice keyboard: hold the microphone to talk (or tap, talk, tap), the text goes in at the
- * cursor. Recording, the model and the text all stay on the phone.
+ * The voice keyboard. Opened from another keyboard (HeliBoard's mic key hands off to the voice
+ * input method; Gboard's switch-keyboard key; the navigation bar's keyboard icon) it starts
+ * listening at once, stops when you stop talking (or tap), puts the text in and switches back to
+ * the keyboard you came from. Hold the button to talk again, or tap, talk, tap. Recording, the
+ * model and the text all stay on the phone.
  */
 class DictateKeyboard : InputMethodService(), KeyboardView.Listener {
     private var view: KeyboardView? = null
     private val gesture = MicGesture()
-    private var recorder: Recorder? = null
+    private var listening: Listening? = null
     private var busy = false
     private var message: String? = null
-    private val main = Handler(Looper.getMainLooper())
-
-    private val levelTick = object : Runnable {
-        override fun run() {
-            val recording = recorder ?: return
-            view?.level(recording.level)
-            main.postDelayed(this, 50)
-        }
-    }
 
     override fun onCreateInputView(): View = KeyboardView(this, this).also {
         view = it
@@ -49,15 +41,26 @@ class DictateKeyboard : InputMethodService(), KeyboardView.Listener {
         }
     }
 
-    override fun onFinishInputView(finishingInput: Boolean) {
-        if (recorder != null) {
-            recorder?.stop()
-            recorder = null
-            main.removeCallbacks(levelTick)
+    /** Shown: someone switched to the voice keyboard to talk, so listen right away. */
+    override fun onWindowShown() {
+        super.onWindowShown()
+        if (listening == null && !busy && setupProblem() == null) {
+            if (startListening(handsFree = true)) gesture.startedElsewhere()
         }
-        gesture.reset()
+    }
+
+    override fun onWindowHidden() {
+        stopListening(keep = false)
+        super.onWindowHidden()
+    }
+
+    override fun onFinishInputView(finishingInput: Boolean) {
+        stopListening(keep = false)
         super.onFinishInputView(finishingInput)
     }
+
+    /** Never the full-screen text box in landscape: the keyboard is small. */
+    override fun onEvaluateFullscreenMode(): Boolean = false
 
     /** What is missing before the keyboard can work, as the line to show. */
     private fun setupProblem(): String? = when {
@@ -71,12 +74,12 @@ class DictateKeyboard : InputMethodService(), KeyboardView.Listener {
         val view = view ?: return
         val problem = setupProblem()
         when {
-            problem != null -> view.show(KeyboardView.Mode.SETUP, problem)
-            recorder != null -> view.show(KeyboardView.Mode.RECORDING, getString(R.string.keyboard_listening))
-            busy -> view.show(KeyboardView.Mode.BUSY, getString(R.string.keyboard_transcribing))
+            problem != null -> view.show(MicButton.Mode.SETUP, problem)
+            listening != null -> view.show(MicButton.Mode.RECORDING, getString(R.string.keyboard_listening))
+            busy -> view.show(MicButton.Mode.BUSY, getString(R.string.keyboard_transcribing))
             Engine.state == Engine.State.LOADING ->
-                view.show(KeyboardView.Mode.IDLE, getString(R.string.keyboard_loading))
-            else -> view.show(KeyboardView.Mode.IDLE, message ?: getString(R.string.keyboard_hint))
+                view.show(MicButton.Mode.IDLE, getString(R.string.keyboard_loading))
+            else -> view.show(MicButton.Mode.IDLE, message ?: getString(R.string.keyboard_hint))
         }
     }
 
@@ -87,48 +90,75 @@ class DictateKeyboard : InputMethodService(), KeyboardView.Listener {
             return
         }
         when (gesture.down(SystemClock.uptimeMillis())) {
-            MicGesture.Action.START -> startRecording()
-            MicGesture.Action.STOP -> stopAndTranscribe()
+            MicGesture.Action.START -> if (!startListening(handsFree = false)) gesture.reset()
+            MicGesture.Action.STOP -> stopListening(keep = true)
             MicGesture.Action.NONE -> {}
         }
     }
 
     override fun onMicUp() {
-        if (gesture.up(SystemClock.uptimeMillis()) == MicGesture.Action.STOP) stopAndTranscribe()
+        if (gesture.up(SystemClock.uptimeMillis()) == MicGesture.Action.STOP) stopListening(keep = true)
     }
 
-    private fun startRecording() {
-        val recording = Recorder()
-        if (!recording.start(this)) {
-            gesture.reset()
+    private fun startListening(handsFree: Boolean): Boolean {
+        val listen = Listening(
+            this,
+            handsFree,
+            object : Listening.Events {
+                override fun level(value: Float) {
+                    view?.level(value)
+                }
+
+                // Hands-free, the end of speech stops it; the button's next press then starts anew.
+                override fun finished(samples: FloatArray) {
+                    listening = null
+                    gesture.reset()
+                    transcribe(samples)
+                }
+            },
+        )
+        if (!listen.start()) {
             message = getString(R.string.keyboard_mic_failed)
             refresh()
-            return
+            return false
         }
         message = null
-        recorder = recording
-        main.post(levelTick)
+        listening = listen
         refresh()
+        return true
     }
 
-    private fun stopAndTranscribe() {
-        val recording = recorder ?: return
-        recorder = null
-        main.removeCallbacks(levelTick)
-        val samples = recording.stop()
+    /** [keep]: transcribe what was recorded; else drop it (the keyboard went away). */
+    private fun stopListening(keep: Boolean) {
+        val listen = listening ?: return
+        if (keep) {
+            listen.finish() // → finished() → transcribe
+        } else {
+            listening = null
+            listen.cancel()
+            gesture.reset()
+            refresh()
+        }
+    }
+
+    private fun transcribe(samples: FloatArray) {
         val keep = !isPassword(currentInputEditorInfo)
         busy = true
         refresh()
         Engine.transcribe(this, samples, Recorder.RATE) { result ->
             busy = false
             result.onSuccess { text ->
-                if (text.isNotEmpty()) {
+                if (text.isEmpty()) {
+                    message = getString(R.string.keyboard_nothing)
+                } else {
                     insert(text)
                     if (keep) {
                         AppFiles(this).transcripts.add(
                             Transcript(System.currentTimeMillis(), Transcript.Source.KEYBOARD, text),
                         )
                     }
+                    // Done: back to the keyboard the user came from (nothing happens without one).
+                    switchToPreviousInputMethod()
                 }
             }.onFailure { message = Engine.describe(it) }
             refresh()
@@ -161,6 +191,7 @@ class DictateKeyboard : InputMethodService(), KeyboardView.Listener {
     }
 
     override fun onSwitch() {
+        stopListening(keep = false)
         if (!switchToPreviousInputMethod()) onSwitchLong()
     }
 

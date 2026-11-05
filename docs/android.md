@@ -2,34 +2,110 @@
 
 **Status (2026-11-05): written and partly checked, never built into an APK, never run on a
 phone.** The Rust side is tested on a Linux host, end to end through JNI with the real model, and
-cross-checked for `aarch64-linux-android`. The Kotlin side is written. Its non-Compose half compiles
+cross-checked for `aarch64-linux-android` and `x86_64-linux-android`. The Kotlin side is written. Its non-Compose half compiles
 against Android's API 35, and its plain unit tests pass. The Gradle build, the Compose screens, lint
 and the JVM screenshots have not run yet, because the machine this was written on could not reach
 Google's Maven repository or download the Android SDK (details at the end). Expect the first
 `./gradlew assembleDebug` to need small fixes.
 
-Two things, both on the phone, nothing sent anywhere (the only network access is the model
-download):
+Everything runs on the phone and nothing is sent anywhere; the only network access is the model
+download.
 
-1. **A voice keyboard.** An Android keyboard whose main element is one big microphone button: hold
-   it and talk (or tap, talk, tap). The text goes in at the cursor, in any app. Next to the button:
-   next keyboard (long press: the keyboard list), backspace, space, enter.
+1. **Dictating into any text field, two ways to start** (the app asks which: *Start recording
+   with* floating button, my keyboard's mic key, or both). An app can't add a key to someone
+   else's keyboard, so these are the two closest things:
+   - **Floating button** (works with any keyboard, Gboard included): an accessibility service shows
+     a small round mic button just above the keyboard while a text field has focus. Tap, talk, tap
+     again; the text goes into the field. Drag it where you like; it keeps its place relative to
+     the keyboard's top.
+   - **Your keyboard's mic key**: Dictate is a *voice input method*. Keyboards whose mic key hands
+     off to the voice input method open it; it listens at once, stops when you stop talking (or on
+     a tap), types the text and switches back to your keyboard. Made for **HeliBoard**.
+   - Dictate is also a speech recognizer for the system (`RecognitionService`, and the
+     `RECOGNIZE_SPEECH` dialog), for apps that ask Android for voice input.
 2. **Transcribing voice messages.** Dictate is a share target for audio: in WhatsApp (or Signal,
    Telegram, …) long-press a voice message, Share, Dictate. It decodes the message on the phone
    (Ogg/Opus, AAC, MP3, WAV, whatever the phone's decoders take), transcribes it and shows the text
    with Copy and Share. Several messages at once give one text each, in order.
 
 The app screen sets it up: microphone permission, the model download (670 MB, size shown first,
-a hint on mobile data), turning the keyboard on (a jump to the keyboard settings), a field to try
-the keyboard, the recent transcripts (kept on the phone only; not from password fields), and the
-dictionary.
+a hint on mobile data), how to start a recording and the setup of that (the accessibility service
+for the button; the voice input method for the mic key, with which input method the mic key opens
+right now), a field to try it, the recent transcripts (kept on the phone only; not from password
+fields), the dictionary, and the speed of the last transcription.
+
+## Which keyboards, which way
+
+| Keyboard | Floating button | Its mic key opens Dictate |
+|---|---|---|
+| **Gboard** | yes | no: Gboard's mic always uses Google's voice typing. Reach the voice keyboard through Gboard's switch-keyboard key (globe / long-press space) or the navigation bar's keyboard icon: it records at once and switches back after typing. |
+| **HeliBoard** (made for it) | yes | yes (see below) |
+| FlorisBoard, AOSP keyboard and other AOSP-based ones | yes | should: they use the same hand-off as HeliBoard (not tried) |
+| Samsung Keyboard | yes | not known yet: whether its voice input setting lists Dictate needs checking on a Galaxy phone |
+| Dictate's own keyboard | not shown (it has the big button) | |
+
+How the mic key finds Dictate (from HeliBoard's source, `RichInputMethodManager.updateShortcutIme`):
+the keyboard asks `InputMethodManager.getShortcutInputMethodsAndSubtypes()` and switches to the
+first answer. Android answers with an *enabled* input method that has a subtype of mode `voice`
+(Dictate's `method.xml` has one), but an enabled one that comes with the phone wins over apps
+(AOSP `InputMethodManagerService`). So on phones where **Google voice typing** is an enabled
+keyboard, turn it off in the keyboard list; the app screen says what the mic key opens right now.
+HeliBoard hides its mic key when there is no voice input method at all.
+
+### HeliBoard setup
+
+1. Install HeliBoard (GitHub releases or F-Droid), turn it on and choose it as your keyboard.
+2. In Dictate: *Start recording with* → "My keyboard's mic key" (or both) → **Open settings** →
+   turn on **Dictate (voice)**. Turn off **Google voice typing** there if it is listed.
+3. The app screen should now say "Your keyboard's mic key opens Dictate". In HeliBoard, the mic
+   key is on the toolbar or a long press on the comma key, depending on its settings
+   (Settings → Toolbar / Keys: "Voice input key").
+4. Tap the **Try it** field, tap HeliBoard's mic key, talk, stop talking: the text appears and
+   HeliBoard comes back.
+
+### Floating button setup
+
+1. *Start recording with* → "Floating button" (or both) → **Accessibility settings** → Installed
+   apps (Downloaded apps) → **Dictate button** → on.
+2. Android 13 and later grey that switch out for apps installed from an APK ("restricted
+   setting"). Then: **App info** (the button next to it) → ⋮ (top right) → **Allow restricted
+   settings** → confirm, and turn the service on again.
+3. Tap any text field: the button sits above the keyboard on the right. Drag it elsewhere if it
+   covers something. Tap, talk, tap again.
+
+How the text gets into the field: Dictate sets the field's text with the dictation at the
+cursor (`ACTION_SET_TEXT`, then the cursor after it). That leaves the clipboard alone. Where a
+field doesn't take that, it puts the text on the clipboard and pastes (`ACTION_PASTE`). The text then
+stays on the clipboard: an accessibility service may write the clipboard but not read it (only the
+current keyboard and the focused app may, AOSP `ClipboardService`), so it can't put back what
+was there before. If nothing can be inserted, the text stays on the clipboard with a short
+notice.
+
+Recording runs in a foreground service of type `microphone` (notification "Dictate is
+listening", with Stop). Starting it from an accessibility service in the background is allowed
+on Android 14 and 15. The tap comes from the button, a visible `TYPE_ACCESSIBILITY_OVERLAY` window,
+and a visible system window counts as being in the foreground for starting such a service and
+for the microphone (AOSP `ActiveServices`, `WindowState`: `hasNonAppVisibleWindow` →
+`REASON_UID_VISIBLE`). The system also binds accessibility services with
+`BIND_INCLUDE_CAPABILITIES`. If Android still refuses the service on some phone, recording goes on
+without the notification, and the log says so.
+
+### The system's voice input
+
+`DictateRecognizer` is an `android.speech.RecognitionService`, and `RecognizeActivity` answers
+`RecognizerIntent.ACTION_RECOGNIZE_SPEECH`. Apps that ask Android for speech recognition can get
+Dictate when it is chosen as the voice input. That's under Settings → Apps → Default apps →
+Digital assistant → Voice input on most phones, and differs by maker. Both listen hands-free
+(until the speaker stops) and give one final result; there are no partial results yet.
 
 ## How it is built
 
 ```
 android/
   app/                 Kotlin + Jetpack Compose, package app.dictate, minSdk 29
-    DictateKeyboard    InputMethodService + KeyboardView (plain views), Recorder (AudioRecord 16 kHz)
+    DictateKeyboard    voice InputMethodService + KeyboardView (plain views); Listening, Recorder (AudioRecord 16 kHz)
+    FloatingMicService AccessibilityService: the floating button (MicButton), MicService (foreground, microphone)
+    DictateRecognizer  RecognitionService; RecognizeActivity: RECOGNIZE_SPEECH
     ShareActivity      ACTION_SEND / SEND_MULTIPLE audio/* → AudioDecoder (MediaExtractor/MediaCodec)
     MainActivity       setup, try field, recent transcripts, dictionary (Compose, ui/Screens.kt)
     Engine, Native     one background thread, JNI calls into …
@@ -61,7 +137,11 @@ android/
   than a phone gives an app. Messages longer than 15 minutes are cut at 15 minutes.
 - **The keyboard is plain Android views**, not Compose: an input method's window has none of the
   lifecycle Compose expects. Hold and tap are told apart by `MicGesture` (a press shorter than
-  0.4 s is a tap: keep recording until the next tap).
+  0.4 s is a tap: keep recording until the next tap). Hands-free (opened from another keyboard,
+  the recognizer) `SilenceStop` ends the recording after 1.5 s of quiet following speech, or after
+  8 s without any.
+- **Voice messages** are averaged down to 16 kHz while decoding (Opus decodes at 48 kHz), so
+  long ones fit in an app's memory.
 - **Why not sherpa-onnx:** its Android library runs Parakeet TDT v3 int8 too and would have been
   the quick way, but without our dictionary, boosting, replacements and spoken commands. Since
   `dictate-core` cross-compiles for Android with only a cfg change, the phone runs the same code
@@ -107,15 +187,25 @@ debugging. Or copy the APK to the phone and open it, allowing installs from that
 1. Open **Dictate**. Tap **Allow** for the microphone.
 2. **Download** the model (670 MB; on Wi-Fi). The notification shows the progress; the card fills
    in when it is done.
-3. **Open settings** → turn on **Dictate (voice)**. Android warns that a keyboard could collect
-   what you type; Dictate keeps transcripts on the phone and sends nothing. Back in the app,
-   **Switch keyboard** → Dictate (voice).
-4. Tap the **Try it** field, hold the microphone, speak, let go. The first time loads the model
-   (a few seconds).
+3. **Start recording with**: floating button, your keyboard's mic key, or both. Then follow the
+   card for it ([floating button](#floating-button-setup), [HeliBoard](#heliboard-setup)).
+   Android warns when you turn on a keyboard or an accessibility service that it could see what you
+   type. Dictate only looks at which field has focus, keeps transcripts on the phone and sends
+   nothing.
+4. Tap the **Try it** field and start a recording. The first one loads the model (a few seconds).
 5. In WhatsApp: long-press a voice message → Share → **Transcribe with Dictate**.
 
-To get back to your usual keyboard: the keyboard key at the left (long press: the list of
-keyboards).
+## Measuring the speed on the phone
+
+Every transcription logs its speed:
+
+```sh
+adb logcat -s Dictate
+# Dictate: model loaded in 2140 ms
+# Dictate: transcribed 4.2 s of audio in 850 ms (0.20 x real time)
+```
+
+The app screen shows the last one at the bottom ("Last transcription: 4.2 s of audio in 0.85 s").
 
 ## Checks
 
@@ -139,9 +229,11 @@ without the NDK.
 | `dictate-android` unit tests (model files, dictionary round trip, resampling, missing model) | Linux x86_64 | pass |
 | A clip through `Dictation` (int8 model, ONNX Runtime 1.31) | Linux x86_64 | pass, word for word |
 | `Native.kt` on a desktop JVM against the host `libdictate_android.so`: every JNI function, 16 and 48 kHz input, errors as exceptions | Linux x86_64, JDK 21 | pass (3.6 s of speech in 0.11 s) |
-| `cargo clippy --target aarch64-linux-android -p dictate-android -p dictate-core -- -D warnings` | Linux, std built from source (`-Zbuild-std`), C parts compiled with zig instead of the NDK | clean; nothing linked |
+| `cargo clippy --target aarch64-linux-android` (and `x86_64-linux-android`) `-p dictate-android -p dictate-core -- -D warnings` | Linux, std built from source (`-Zbuild-std`), C parts compiled with zig instead of the NDK | clean; nothing linked |
 | The Kotlin outside Compose (keyboard, recorder, decoder, download, engine, share pipeline) | kotlinc 2.4 against API 35's `android.jar` | compiles |
-| Plain unit tests (`TypingTest`, `PcmTest`, `TranscriptLogTest`) | kotlinc + kotlin-test on the JVM | pass |
+| Plain unit tests (`TypingTest`, `PcmTest`, `TranscriptLogTest`, `ListeningTest`) | kotlinc + kotlin-test on the JVM | pass (14) |
+| How HeliBoard finds the voice input method | HeliBoard's source | `getShortcutInputMethodsAndSubtypes()`: a `voice` subtype qualifies |
+| Accessibility service → microphone foreground service on Android 14/15; clipboard read | AOSP frameworks/base (`ActiveServices`, `WindowState`, `AccessibilityServiceConnection`, `ClipboardService`) | allowed while the button is visible; clipboard not readable |
 | Gradle build, Compose screens, lint, Robolectric/Roborazzi screenshots | none yet | not run (no Google Maven, no SDK) |
 | On a phone or an emulator | none yet | not run |
 
@@ -152,6 +244,10 @@ without the NDK.
 - [ ] First run on a phone: model load time and memory with int8 on a phone CPU, transcription
       speed, the keyboard in a few apps (WhatsApp, Gmail, a browser), a WhatsApp voice note.
 - [ ] A release build: signing, R8, a smaller APK (the AAR's Java part is unused).
+- [ ] On a phone: the floating button in a few apps (WhatsApp, Gmail, Chrome, Signal); HeliBoard's
+      mic key; whether Samsung Keyboard's voice input setting lists Dictate (Galaxy phone).
+- [ ] NPU (Snapdragon's Hexagon) through ONNX Runtime's QNN execution provider: fixed-shape,
+      quantized encoder chunks; see the PR for what it needs. CPU int8 first, measured with the log.
 - [ ] Live text while speaking (the desktop's 0.6 s live pass); text stays empty until you let go
       for now.
 - [ ] Settings on the phone beyond the dictionary (spoken commands on/off, boost weight), the
