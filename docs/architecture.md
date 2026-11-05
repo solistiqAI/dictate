@@ -46,15 +46,10 @@ Windows and Linux betas); `dictate-core`
 - `voice.rs`, `talk.rs`: reading aloud (`say`) and the spoken conversation (Claude Code, or an agent plugin: `docs/agent-plugins.md`).
 - `meeting.rs`: the Souffleur; `history.rs`: the dictation history (`history.jsonl`).
 
-## Why Rust (and not Swift)
+## Recognition: CPU or Neural Engine
 
-Speed is not the reason: the work happens inside ONNX Runtime (C++), whichever language calls it,
-and the Rust and Swift glue around it is the same few milliseconds. Swift would be the native choice
-for macOS APIs and Core ML on the Neural Engine (FluidAudio, which our Swift helper uses). Rust
-gives us: one language for the app, the CLI and the tools around it, `parakeet-rs`, which
-already loads Parakeet Ultra, and a path to Windows and Linux (now betas, see `docs/windows.md`,
-`docs/linux.md`). The macOS-specific part lives in `src/platform/macos/`, beside
-`src/platform/windows/` and `src/platform/linux/`.
+The app is Rust (one language for the app, the CLI and the tools, and a path to Windows and Linux);
+the Neural Engine is reached through a small Swift helper, since Core ML is Apple's.
 
 CPU or Neural Engine (window → Erkennung → Modell): "Parakeet Ultra · CPU" runs on ONNX Runtime,
 "Parakeet Ultra · Neural Engine" (the default since 2026-11-01) is FluidAudio's Core ML build of the same model (int8 encoder,
