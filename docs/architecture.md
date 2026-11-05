@@ -79,6 +79,12 @@ live text skips it (43 instead of ~135 ms per pass), the final text keeps it. Fl
 thresholds by dictionary size: with a 6-word test dictionary it once replaced "Nacht drei Tickets im"
 with a dictionary word; with 32 dictionary words none of the 450 clips showed that.
 
+Tried and not taken (2026-11-05, M5 Pro, the 128 clips in `eval/clips/`, raw text without dictionary): Moondream's
+[Parakeet Redux](https://huggingface.co/moondream/parakeet-redux), Ultra with 1.58-bit (ternary) encoder weights, 178 MB,
+in their Photon runtime: WER 20 % on CPU and GPU against 10 % for Ultra on the Neural Engine (8 % against 2 % on
+sentences without dictionary words; twice it answered in English). Ultra itself in Photon: 11 % (GPU, 31 ms per clip).
+Redux loads only in Photon (closed kernels, posts usage and the host name to Moondream), not in ONNX Runtime or Core ML.
+
 ## Models
 
 The fp32 ONNX files come from [altunenes/parakeet-rs](https://huggingface.co/altunenes/parakeet-rs),
