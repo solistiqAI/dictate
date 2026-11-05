@@ -176,6 +176,10 @@ what to try first: `docs/linux.md`.
   goes into its profile (or brand folder), kept in its own private team repo (`docs/teams.md`); a
   new kind of setting becomes a profile key here with a neutral default, the team's value stays in
   its repo. When you work for such a team, its repo's `AGENTS.md` has the rest.
+- **Changes come as pull requests**: work on a branch (in a fork without write access) and open a
+  pull request against `main`; never commit or push to `main` directly. Only the maintainers push
+  to `main`, and only when their own instructions say so (their team repo's `AGENTS.md`). Say in the
+  pull request what you ran and what you could not run (README, "Contributing").
 - Other agents and services plug in (`agents/`, the profile), they are not built into `src/`.
 - Nothing team-specific in the code: names, hosts, tools, report targets, default words go into a
   profile (keys in `core/src/profile.rs`; the built-in `profiles/default.toml` stays neutral, a test
