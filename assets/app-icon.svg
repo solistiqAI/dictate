@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="tile" x1="320" y1="100" x2="650" y2="924" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#353a3d"/>
+      <stop offset=".5" stop-color="#1c2124"/>
+      <stop offset="1" stop-color="#090d0f"/>
+    </linearGradient>
+    <linearGradient id="rim" x1="512" y1="100" x2="512" y2="924" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#909699"/>
+      <stop offset=".3" stop-color="#454b4e"/>
+      <stop offset="1" stop-color="#111719"/>
+    </linearGradient>
+    <linearGradient id="highlight" x1="512" y1="110" x2="512" y2="914" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#d4d8da" stop-opacity=".6"/>
+      <stop offset=".35" stop-color="#c0c7cb" stop-opacity=".08"/>
+      <stop offset="1" stop-color="#8e989e" stop-opacity=".16"/>
+    </linearGradient>
+    <linearGradient id="cursor" x1="0" y1="282" x2="0" y2="742" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#fff"/>
+      <stop offset="1" stop-color="#dce1e4"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="12"/>
+    </filter>
+    <!-- Continuous rounded-square silhouette, with the standard macOS icon inset. -->
+    <path id="shape" d="M310 100H714C862 100 924 162 924 310V714C924 862 862 924 714 924H310C162 924 100 862 100 714V310C100 162 162 100 310 100Z"/>
+  </defs>
+  <use href="#shape" transform="translate(0 12)" fill="#000" opacity=".28" filter="url(#shadow)"/>
+  <use href="#shape" fill="url(#tile)" stroke="url(#rim)" stroke-width="5"/>
+  <use href="#shape" transform="translate(512 512) scale(.977) translate(-512 -512)" fill="none" stroke="url(#highlight)" stroke-width="3"/>
+  <!-- Voice level bars, the same as the menu bar glyph (src/glyph.rs). -->
+  <rect x="304" y="437" width="56" height="150" rx="28" fill="url(#cursor)"/>
+  <rect x="394" y="362" width="56" height="300" rx="28" fill="url(#cursor)"/>
+  <rect x="484" y="282" width="56" height="460" rx="28" fill="url(#cursor)"/>
+  <rect x="574" y="382" width="56" height="260" rx="28" fill="url(#cursor)"/>
+  <rect x="664" y="447" width="56" height="130" rx="28" fill="url(#cursor)"/>
+</svg>

@@ -1,0 +1,33 @@
+{
+  "model": "parakeet-ultra",
+  "clips": 128,
+  "wer": 0.09436619718309859,
+  "wer_with_dictionary_words": 0.16761363636363635,
+  "wer_without": 0.0223463687150838,
+  "dictionary_found": 65,
+  "dictionary_wanted": 132,
+  "ms_median": 75.178042,
+  "took_per_audio_second": 0.017534069159091427,
+  "worst": [
+    [
+      "Das Frontend ist in Svelte geschrieben, die Tools in Rust und Python.",
+      "Das Fronten ist ins Felder geschrieben, die Tols in Rust und Keton."
+    ],
+    [
+      "Bitte leg das im Backlog an und schreib die Tickets für den Nightly Build.",
+      "Bitte legt das im Backrock an und schreibt die Tickets für den nicht Wild."
+    ],
+    [
+      "Im Agent Swarm läuft der Nightly Build jetzt jede Nacht automatisch.",
+      "Im Ergänzraum läuft der Nigdribult jetzt jede Nacht automatisch."
+    ],
+    [
+      "Im Agent Swarm läuft der Nightly Build jetzt jede Nacht automatisch.",
+      "Im Agensraum läuft der Nick Tribult jetzt jede Nacht automatisch."
+    ],
+    [
+      "Dictate nutzt Parakeet auf der Neural Engine und ist dadurch sehr schnell.",
+      "Diktator nutzt Parakert auf der Neuralengene und ist dadurch sehr schnell."
+    ]
+  ]
+}

@@ -1,0 +1,35 @@
+# An example team profile (keys documented in core/src/profile.rs and profiles/default.toml).
+# Install with `dictate profile install profiles/example.toml`, or keep yours in a private repo and
+# install it from there (`dictate profile install gh:your-org/your-repo/dictate/profile.toml`): with
+# `update_from` set, every machine fetches it again once a day.
+name = "Example"
+update_from = ""
+
+# Words the transcript is corrected towards and the decoder favours: names, products, jargon.
+dictionary = ["Example GmbH", "Kubernetes", "Pull Request", "Grafana"]
+
+# Pages allowed to call the local server (127.0.0.1:47619), e.g. an internal web app with a
+# dictation button. Loopback pages are always allowed.
+web_origins = []
+
+# Anonymous daily usage numbers as comments on an issue of a private repo of yours (`gh` signed
+# in), or `url = "https://…"` instead for a JSON POST to a service of yours (docs/teams.md).
+[report]
+repo = "your-org/dictate-reports"
+issue = 1
+
+[talk]
+# Who answers in "Talk it over": "claude" (Claude Code on the machine) or an agent plugin's name,
+# e.g. "fleet" (an agent-fleet session; docs/agent-plugins.md).
+agent = "claude"
+
+[souffleur]
+# The folder the meeting agent works in (its CLAUDE.md, what it may read).
+folder = "~/work"
+context = """
+The person works at Example GmbH. Sources: the CRM (mcp__crm), the wiki (mcp__notion), mail.
+"""
+# Read-only tools that run without asking; MCP servers as "mcp__<server>".
+allowed_tools = ["mcp__crm", "mcp__notion", "Read", "Grep", "Glob", "WebSearch", "WebFetch", "ToolSearch"]
+# Loaded before the meeting starts, so the first lookup is quicker.
+warmup_tools = ["mcp__crm__search", "mcp__notion__notion-search"]

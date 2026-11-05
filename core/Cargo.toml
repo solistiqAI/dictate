@@ -1,0 +1,33 @@
+[package]
+name = "dictate-core"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+description = "Dictate's platform-free part: transcription on the CPU, dictionary, replacements, VAD, settings, usage report, eval. Builds and tests on Linux."
+
+[dependencies]
+anyhow = "1.0.104"
+# The eval clips (`eval/clips/`) are FLAC to keep the repository small.
+claxon = "0.4.3"
+clap = { version = "4.6.7", features = ["derive"] }
+dirs = "7.0.0"
+hound = "3.5.1"
+parakeet-rs = { version = "0.4.4", features = ["cohere"] }
+regex = "1.13.1"
+rubato = "5.0.1"
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.154"
+toml = "1.1.8"
+
+# Parakeet on an NVIDIA GPU (ONNX Runtime's CUDA build; needs CUDA 12 + cuDNN 9 DLLs at run time)
+# or any DirectX 12 GPU (DirectML). Off by default: the CPU is the baseline everywhere. Meant for
+# the Windows build (`cargo build --release --features cuda` at the root forwards them).
+[features]
+cuda = ["parakeet-rs/cuda"]
+directml = ["parakeet-rs/directml"]
+
+# On Linux ONNX Runtime is loaded when the first model loads (`ORT_DYLIB_PATH`, see AGENTS.md)
+# instead of being downloaded and linked at build time: Linux runners without access to
+# cdn.pyke.io, and the unit tests need no runtime at all. macOS links it as before.
+[target.'cfg(target_os = "linux")'.dependencies]
+ort = { version = "=2.0.0-rc.15", default-features = false, features = ["load-dynamic"] }

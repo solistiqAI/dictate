@@ -1,0 +1,13 @@
+Then lay the text out, without changing a word: a new paragraph (blank line) where a new thought starts, after a greeting and before the closing of a mail; a list said in the text as lines starting with "- "; a sequence said as "erstens, zweitens, drittens" as lines "1. ", "2. ", "3. ", where the words erstens, zweitens, drittens go. A short text, a question or a single thought stays one line.
+<text>Für morgen brauchen wir drei Sachen erstens das Angebot zweitens die Folien und drittens den Termin mit Kai.</text>
+Für morgen brauchen wir drei Sachen:
+1. das Angebot
+2. die Folien
+3. den Termin mit Kai
+<text>Hallo Jonas, danke für gestern, das Budget passt so. Viele Grüße, Thomas</text>
+Hallo Jonas,
+
+danke für gestern, das Budget passt so.
+
+Viele Grüße,
+Thomas

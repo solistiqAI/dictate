@@ -1,0 +1,33 @@
+{
+  "model": "parakeet-ultra-coreml",
+  "clips": 288,
+  "wer": 0.10046948356807511,
+  "wer_with_dictionary_words": 0.16477272727272727,
+  "wer_without": 0.037243947858473,
+  "dictionary_found": 155,
+  "dictionary_wanted": 297,
+  "ms_median": 130.405333,
+  "took_per_audio_second": 0.02993096621231888,
+  "worst": [
+    [
+      "Morgen um zehn Uhr haben wir ein Treffen mit dem Kunden in München.",
+      ""
+    ],
+    [
+      "Morgen um zehn Uhr haben wir ein Treffen mit dem Kunden in München.",
+      "Organ obsen uhr aben wir eintreffen mit dem Kunden in Lünchen."
+    ],
+    [
+      "Dictate nutzt Parakeet auf der Neural Engine und ist dadurch sehr schnell.",
+      "Die Taten nutzt Paracelt auf der Neuralergene und ist dadurch sehr schnell."
+    ],
+    [
+      "Dictate nutzt Parakeet auf der Neural Engine und ist dadurch sehr schnell.",
+      "Die Taten nutzt Paraceld auf der Neuralengene und ist dadurch sehr schnell."
+    ],
+    [
+      "Das Frontend ist in Svelte geschrieben, die Tools in Rust und Python.",
+      "Das Fronten ist ins Felter geschrieben, die Tols in Rust und Kyton."
+    ]
+  ]
+}

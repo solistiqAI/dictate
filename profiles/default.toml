@@ -1,0 +1,20 @@
+# The built-in profile (core/src/profile.rs embeds this file): neutral, for anyone.
+# A team's own profile has the same keys; see profiles/example.toml and the README ("Profiles").
+name = ""
+
+# Default words of the dictionary (sound-alike correction and decoder boosting). Users add and
+# delete their own on top of these in the window (Wörterbuch).
+dictionary = ["Claude", "Codex", "GitHub", "Pull Request", "Commit", "Deploy"]
+
+# No anonymous usage report. A team's profile sets `repo = "owner/repo"` and `issue = <n>` (comments
+# on an issue of a private repo, `gh` signed in on each machine) or `url = "https://…"` (JSON POST);
+# docs/teams.md.
+[report]
+
+[talk]
+# "Darüber diskutieren": Claude Code on this machine answers (`claude -p`).
+agent = "claude"
+
+[souffleur]
+# Read-only tools that run without asking. Add MCP servers as "mcp__<server>" in your profile.
+allowed_tools = ["Read", "Grep", "Glob", "WebSearch", "WebFetch", "ToolSearch"]

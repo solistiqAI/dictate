@@ -1,0 +1,44 @@
+#!/bin/sh
+# Dictate agent plugin: "Talk it over" with an agent-fleet session through the `fleet` CLI.
+# The protocol is in docs/agent-plugins.md. scripts/install.sh copies this file into the data folder's
+# agents/; a profile picks it with `[talk] agent = "fleet"`. The setting `discuss_profile`
+# arrives as DICTATE_AGENT_PROFILE (a fleet profile id or name; empty = your default one).
+set -eu
+command -v fleet >/dev/null 2>&1 || { echo "the fleet CLI (fleet) is not installed" >&2; exit 1; }
+id=${2:-}
+case "${1:-}" in
+start)
+  # The brief and the first thing said arrive on stdin; print the session's number.
+  set -- start --json -o none
+  [ -n "${DICTATE_AGENT_PROFILE:-}" ] && set -- "$@" -p "$DICTATE_AGENT_PROFILE"
+  out=$(fleet "$@" -)
+  printf '%s\n' "$out" | sed -n 's/.*"id"[[:space:]]*:[[:space:]]*\([0-9][0-9]*\).*/\1/p' | head -n 1
+  ;;
+ask)
+  # What was said on stdin (empty: the answer to the start); print the agent's answer once its
+  # turn is over. The answer before the reply is not the new one.
+  text=$(cat)
+  before=""
+  if [ -n "$text" ]; then
+    before=$(fleet events "$id" --last 2>/dev/null || true)
+    printf '%s' "$text" | fleet reply "$id" - >/dev/null
+  fi
+  for _ in 1 2 3 4; do
+    answer=$(fleet events "$id" --last -f)
+    if [ -n "$answer" ] && [ "$answer" != "$before" ]; then
+      printf '%s\n' "$answer"
+      exit 0
+    fi
+    sleep 1.5
+  done
+  echo "no answer from the agent" >&2
+  exit 1
+  ;;
+close)
+  fleet close "$id" >/dev/null
+  ;;
+*)
+  echo "usage: fleet start | ask <id> | close <id>" >&2
+  exit 2
+  ;;
+esac

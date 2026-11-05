@@ -1,0 +1,45 @@
+# Self-corrections for `dictate correct --eval` (a benchmark set, then misheard cues and dictations): dictated text, then
+# the accepted results (lower case, no punctuation, | between alternatives), or = when it must stay as it is.
+Also ich sage jetzt drei Schritte, ah ne, mach fünf Schritte und bearbeite diese.	mach fünf schritte und bearbeite diese|also ich sage jetzt mach fünf schritte und bearbeite diese|also ich sage jetzt fünf schritte und bearbeite diese|ich sage jetzt fünf schritte und bearbeite diese
+Wir sehen uns nächste Woche, ne, übernächste Woche am Montag.	wir sehen uns übernächste woche am montag
+Die Datei heißt Bericht 2025, nein, Bericht 2026.	die datei heißt bericht 2026
+Klick auf Login, äh, ich meine Logout, und dann schließ das Fenster.	klick auf logout und dann schließ das fenster
+Der Bus kommt um acht, äh nein, um neun Uhr an der Haltestelle.	der bus kommt um neun uhr an der haltestelle
+Schick das bitte an Kai, sorry, ich meine an Jonas, der kümmert sich darum.	schick das bitte an jonas der kümmert sich darum
+Das Budget liegt bei 5000 Euro, nein, bei 6000 Euro im Jahr.	das budget liegt bei 6000 euro im jahr
+Ich nehme den Zug, ah nee, doch lieber das Auto, weil es schneller ist.	ich nehme das auto weil es schneller ist|ich nehme doch lieber das auto weil es schneller ist
+Der Termin ist am Dienstag. Nein, das ist falsch, ich habe mich vertan. Der Termin ist am Mittwoch um zehn.	der termin ist am mittwoch um zehn
+Ähm, ich glaube, wir sollten, äh, das Meeting verschieben.	ich glaube wir sollten das meeting verschieben
+Wir brauchen vier, Quatsch, sechs Stühle für den Workshop.	wir brauchen sechs stühle für den workshop
+Was ist die Hauptstadt von Frankreich?	=
+Schreib eine Mail an Jonas, dass das Meeting morgen ausfällt.	=
+Nein, das machen wir so nicht, wir brauchen erst die Zahlen vom Kunden.	=
+Ich meine, dass wir das Angebot nächste Woche schicken sollten.	=
+Der Kunde will drei Lizenzen, nicht fünf.	=
+Kannst du mir erklären, wie der Forecast funktioniert, also im Detail?	=
+Ich habe heute mit dem Kunden gesprochen und wir haben vereinbart, dass wir die erste Lieferung am Dienstag, äh nein, am Donnerstag rausschicken, weil das Lager vorher noch wegen der Inventur geschlossen ist und die Spedition erst dann wieder Kapazitäten hat. Bitte informiere auch das Team im Vertrieb darüber.	ich habe heute mit dem kunden gesprochen und wir haben vereinbart dass wir die erste lieferung am donnerstag rausschicken weil das lager vorher noch wegen der inventur geschlossen ist und die spedition erst dann wieder kapazitäten hat bitte informiere auch das team im vertrieb darüber
+Wir fahren mit drei, nein, vier Autos nach München, äh, ich meine nach Augsburg.	wir fahren mit vier autos nach augsburg
+Push das auf den Dev Branch, äh nein, auf main, und mach dann einen Release.	push das auf main und mach dann einen release
+Kannst du bitte, nee, warte, schreib erst die Tests und dann den Code.	schreib erst die tests und dann den code
+Das Meeting ist nicht am Montag, sondern am Dienstag.	=
+Wir liefern an die Filiale in Köln beziehungsweise Bonn.	=
+Moment mal, das muss ich erst prüfen.	=
+Sorry, dass ich so spät antworte, ich war im Urlaub.	=
+Wir treffen uns um drei, hinein um fünf Uhr.	wir treffen uns um fünf uhr
+Der Preis ist drei, Arne, vier Euro.	der preis ist vier euro
+Wir sehen uns um zehn, ahne, um elf im Büro.	wir sehen uns um elf im büro
+Äh ja, kannst du mal ein neues Feature bauen, was um fünf Uhr, ah ne, um drei Uhr irgendwas macht?	ja kannst du mal ein neues feature bauen was um drei uhr irgendwas macht
+Okay, ich meine drei, ah ne, fünf, los.	okay ich meine fünf los|okay fünf los
+Mache drei eine fünf Wiederholungen.	mache fünf wiederholungen
+Ich gehe hinein und hole den Schlüssel.	=
+Das sind drei Lizenzen, nicht fünf, wie besprochen.	=
+Ja, macht das wie vorgeschlagen bei der 1. Und bei 2 auch, ich meine, das ist okay, so, wir können das easy danach abprüfen, ist kein Problem.	=
+Kannst du eine Pause machen, eine kurze, und dann weiter?	=
+Okay, mache drei, Anni fünf Bewertungen.	okay mache fünf bewertungen
+Okay, kannst du drei oder nee sogar fünf Bewertungen machen?	okay kannst du sogar fünf bewertungen machen|kannst du sogar fünf bewertungen machen|okay kannst du fünf bewertungen machen
+Wir treffen uns um drei, alle um fünf am Bahnhof. Fasst das?	wir treffen uns um fünf am bahnhof fasst das
+Erstelle drei an die fünf Tickets.	erstelle fünf tickets
+Das machen wir am Montag, alle am Dienstag.	das machen wir am dienstag
+Wir brauchen alle drei Ordner.	=
+Das sind drei, vier Leute.	=
+Ich habe an die fünf Leute eingeladen.	=

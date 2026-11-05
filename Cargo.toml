@@ -1,0 +1,85 @@
+# Two crates: `dictate` (this folder, the macOS app and CLI) and `dictate-core` (`core/`, the
+# platform-free part that builds and tests on Linux too; see AGENTS.md).
+[workspace]
+members = ["core"]
+# `cargo build/test/clippy` at the root cover both.
+default-members = [".", "core"]
+
+[package]
+name = "dictate"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+
+[dependencies]
+anyhow = "1.0.104"
+arboard = "3.7.0"
+clap = { version = "4.6.7", features = ["derive"] }
+cpal = "0.18.2"
+dictate-core = { path = "core" }
+dirs = "7.0.0"
+hound = "3.5.1"
+libc = "0.2.191"
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.154"
+tao = "0.37"
+tray-icon = "0.25"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+# Gemma for "Korrigieren" (`llm.rs`); llama.cpp built with cmake, Metal kernels embedded as source.
+llama-cpp-2 = { version = "0.1.160", default-features = false, features = ["metal"] }
+core-foundation = "0.10.1"
+core-graphics = "0.25.0"
+objc2 = "0.6"
+objc2-app-kit = "0.3"
+objc2-foundation = "0.3"
+objc2-quartz-core = "0.3"
+wry = { version = "0.57", default-features = false }
+
+# Windows (beta, `src/platform/windows/`; README → "Windows (beta)"). Gemma on the CPU by default;
+# the `vulkan` / `cuda` features below put it on the GPU.
+[target.'cfg(windows)'.dependencies]
+llama-cpp-2 = { version = "0.1.160", default-features = false }
+wry = { version = "0.57", default-features = false }
+windows = { version = "0.62", features = [
+    "Win32_Foundation",
+    "Win32_Globalization",
+    "Win32_Graphics_Gdi",
+    "Win32_Media_Audio",
+    "Win32_Media_Audio_Endpoints",
+    "Win32_System_Com",
+    "Win32_System_Console",
+    "Win32_System_LibraryLoader",
+    "Win32_System_Registry",
+    "Win32_System_SystemInformation",
+    "Win32_System_Time",
+    "Win32_UI_Accessibility",
+    "Win32_UI_Input_KeyboardAndMouse",
+    "Win32_UI_Shell",
+    "Win32_UI_WindowsAndMessaging",
+] }
+
+# Linux (beta, `src/platform/linux/`; docs/linux.md). Tray, window and overlay through GTK 3 and
+# WebKitGTK (system packages, see docs/linux.md); X11 input (XInput2, XTest) is loaded at run
+# time (x11-dl), so it is no build dependency. Gemma on the CPU; `vulkan` / `cuda` for the GPU.
+[target.'cfg(target_os = "linux")'.dependencies]
+arboard = { version = "3.7.0", features = ["wayland-data-control"] }
+gtk = "0.18"
+llama-cpp-2 = { version = "0.1.160", default-features = false }
+wry = { version = "0.57", default-features = false, features = ["os-webview"] }
+x11-dl = "2.21"
+
+# GPU builds for Windows and Linux (do not turn these on on a Mac: Metal is already there).
+# vulkan: Gemma on any Vulkan GPU (NVIDIA, AMD, Intel; needs the Vulkan SDK to build).
+# cuda: Gemma and Parakeet on an NVIDIA GPU (needs the CUDA toolkit to build, CUDA + cuDNN to run).
+# directml: Parakeet on any DirectX 12 GPU through ONNX Runtime's DirectML build.
+[features]
+vulkan = ["llama-cpp-2/vulkan"]
+cuda = ["llama-cpp-2/cuda", "dictate-core/cuda"]
+directml = ["dictate-core/directml"]
+
+# parakeet-rs with two additions (for both crates): ParakeetTDT::set_allowed_tokens (keeps decoding in Latin script)
+# and ParakeetTDT::set_boost (favours dictionary words while decoding).
+# Diff against the crates.io release: vendor/parakeet-rs/DICTATE-PATCH.md.
+[patch.crates-io]
+parakeet-rs = { path = "vendor/parakeet-rs" }

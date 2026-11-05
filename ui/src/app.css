@@ -1,0 +1,185 @@
+/* System font, follows light/dark like macOS System Settings (data-theme from main.ts), teal as the
+   accent. */
+
+:root,
+:root[data-theme='light'] {
+	--font: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
+	--font-size: 13px;
+	--title-size: 20px;
+	--bg: #f5f5f6;
+	--surface: #ffffff;
+	--surface-2: #ececee;
+	--input: #ffffff;
+	--border: rgba(0, 0, 0, 0.12);
+	--separator: rgba(0, 0, 0, 0.07);
+	--text: #1d1d1f;
+	--muted: #6e6e73;
+	--accent: #146579;
+	--accent-text: #ffffff;
+	--accent-soft: color-mix(in srgb, #146579 12%, transparent);
+	--ok: #28633d;
+	--warn: #895019;
+	--err: #ae3042;
+	--sidebar: #e8e8ea;
+	--sidebar-text: #1d1d1f;
+	--sidebar-muted: #6e6e73;
+	--sidebar-active: #146579;
+	--sidebar-active-text: #ffffff;
+	--sidebar-border: rgba(0, 0, 0, 0.08);
+	--radius: 6px;
+	--radius-group: 10px;
+	--row-pad: 10px 14px;
+	--shadow-group: 0 0 0 0.5px rgba(0, 0, 0, 0.1), 0 1px 1px rgba(0, 0, 0, 0.03);
+	--key-bg: #ffffff;
+	--key-shadow: 0 0.5px 0 rgba(0, 0, 0, 0.25), 0 0 0 0.5px rgba(0, 0, 0, 0.15);
+	/* Souffleur: who speaks, the same colour in meters and transcript. */
+	--me: #146579;
+	--others: #7a4d8f;
+	color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+	--bg: #1e1e20;
+	--surface: #2a2a2c;
+	--surface-2: #38383b;
+	--input: #1e1e20;
+	--border: rgba(255, 255, 255, 0.12);
+	--separator: rgba(255, 255, 255, 0.07);
+	--text: #ececee;
+	--muted: #9d9da3;
+	--accent: #80c9dc;
+	--accent-text: #14272d;
+	--accent-soft: color-mix(in srgb, #80c9dc 16%, transparent);
+	--ok: #9bc7a3;
+	--warn: #e0b282;
+	--err: #f39ca9;
+	--sidebar: #262628;
+	--sidebar-text: #ececee;
+	--sidebar-muted: #9d9da3;
+	--sidebar-active: #80c9dc;
+	--sidebar-active-text: #14272d;
+	--sidebar-border: rgba(255, 255, 255, 0.06);
+	--shadow-group: 0 0 0 0.5px rgba(255, 255, 255, 0.08);
+	--key-bg: #3a3a3d;
+	--key-shadow: 0 0.5px 0 rgba(0, 0, 0, 0.6), 0 0 0 0.5px rgba(255, 255, 255, 0.1);
+	--me: #80c9dc;
+	--others: #cfa9e0;
+	color-scheme: dark;
+}
+
+*,
+*::before,
+*::after {
+	box-sizing: border-box;
+}
+
+html,
+body {
+	margin: 0;
+	height: 100%;
+	overscroll-behavior: none;
+}
+
+body {
+	font-family: var(--font);
+	font-size: var(--font-size);
+	line-height: 1.4;
+	color: var(--text);
+	background: var(--bg);
+	-webkit-font-smoothing: antialiased;
+	-webkit-user-select: none;
+	user-select: none;
+	cursor: default;
+}
+
+#app {
+	height: 100%;
+}
+
+input,
+textarea,
+button,
+select {
+	font: inherit;
+	color: inherit;
+}
+
+input,
+textarea {
+	-webkit-user-select: text;
+	user-select: text;
+}
+
+button {
+	cursor: default;
+}
+
+:focus-visible {
+	outline: 2px solid color-mix(in srgb, var(--accent) 70%, transparent);
+	outline-offset: 1px;
+}
+
+.btn {
+	height: 26px;
+	padding: 0 12px;
+	border-radius: var(--radius);
+	border: 1px solid var(--border);
+	background: var(--surface);
+	white-space: nowrap;
+}
+.btn:hover {
+	background: var(--surface-2);
+}
+.btn.primary {
+	background: var(--accent);
+	border-color: transparent;
+	color: var(--accent-text);
+	font-weight: 500;
+}
+.btn.primary:hover {
+	background: color-mix(in srgb, var(--accent) 88%, var(--text));
+}
+.btn:disabled {
+	opacity: 0.45;
+}
+.btn:not(.primary) {
+	border-color: transparent;
+	box-shadow: var(--key-shadow);
+	background: var(--key-bg);
+}
+
+.field {
+	height: 28px;
+	padding: 0 9px;
+	border-radius: var(--radius);
+	border: 1px solid var(--border);
+	background: var(--input);
+	outline: none;
+}
+.field:focus {
+	border-color: var(--accent);
+	box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.muted {
+	color: var(--muted);
+}
+
+::-webkit-scrollbar {
+	width: 8px;
+	height: 8px;
+	background: transparent;
+}
+::-webkit-scrollbar-thumb {
+	border: 2px solid transparent;
+	border-radius: 8px;
+	background: transparent padding-box;
+}
+:hover::-webkit-scrollbar-thumb {
+	background-color: color-mix(in srgb, var(--muted) 40%, transparent);
+}
+
+input[type='checkbox'],
+input[type='radio'] {
+	accent-color: var(--accent);
+}

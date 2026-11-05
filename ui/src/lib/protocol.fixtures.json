@@ -1,0 +1,164 @@
+{
+	"requests": [
+		{ "type": "load" },
+		{ "type": "copy", "text": "Hallo" },
+		{ "type": "find", "original": "die Matchdruckers", "edited": "die Merge Requests" },
+		{
+			"type": "save_entry",
+			"id": 4,
+			"text": "die Merge Requests",
+			"learn": [{ "heard": "Matchdruckers", "meant": "Merge Requests", "kind": "replacement" }]
+		},
+		{
+			"type": "config",
+			"config": {
+				"triggers": [{ "key": "fn", "mode": "hybrid" }],
+				"model": "parakeet-ultra",
+				"language": "auto",
+				"ui_language": "auto",
+				"microphone": "",
+				"sounds": "leise",
+				"pause_media": true,
+				"mute_while_recording": false,
+				"learn_from_corrections": true,
+				"voice_commands": true,
+				"correct_model": "apple",
+				"boost_vocabulary": true,
+				"share_reports": true,
+				"start_at_login": false,
+				"show_bar": true,
+				"meeting_microphone": "",
+				"meeting_system_audio": true,
+				"meeting_model": "sonnet",
+				"meeting_instructions": ""
+			}
+		},
+		{ "type": "words", "words": ["SOLISTIQ", "Merge Request"] },
+		{ "type": "replacements", "replacements": [{ "heard": "Solistik, Solistic", "meant": "SOLISTIQ" }] },
+		{ "type": "try", "text": "bei Solistik" },
+		{ "type": "record_trigger", "row": 1 },
+		{ "type": "download_model", "name": "parakeet-ultra-int8" },
+		{ "type": "mic_test" },
+		{ "type": "open_privacy", "what": "accessibility" },
+		{ "type": "open_folder" },
+		{ "type": "drag" },
+		{ "type": "start_meeting" },
+		{ "type": "stop_meeting" },
+		{ "type": "ask_meeting", "text": "Wann war der letzte Call mit Nordlicht?" },
+		{ "type": "open_panel" },
+		{ "type": "open_page", "page": "meeting" },
+		{ "type": "open_url", "url": "https://www.notion.so/abc" },
+		{ "type": "open_meetings" }
+	],
+	"events": [
+		{
+			"type": "state",
+			"state": {
+				"status": "ready",
+				"status_text": "Bereit",
+				"accessibility": "granted",
+				"microphone": "unknown",
+				"microphone_name": "MacBook Pro-Mikrofon",
+				"microphones": ["MacBook Pro-Mikrofon", "Jabra Evolve2 65"],
+				"config": {
+					"triggers": [{ "key": "shift+alt+cmd+5", "mode": "toggle", "format": true, "correct": true }],
+					"model": "parakeet-ultra",
+					"language": "de",
+					"ui_language": "en",
+					"microphone": "Jabra Evolve2 65",
+					"sounds": "mittel",
+					"pause_media": false,
+					"mute_while_recording": true,
+					"learn_from_corrections": false,
+					"voice_commands": false,
+					"correct_model": "gemma-4-e4b",
+					"boost_vocabulary": false,
+					"share_reports": false,
+					"start_at_login": true,
+					"show_bar": false,
+					"meeting_microphone": "Jabra Evolve2 65",
+					"meeting_system_audio": false,
+					"meeting_model": "haiku",
+					"meeting_instructions": "Antworte auf Englisch."
+				},
+				"words": [{ "word": "SOLISTIQ", "source": "default" }],
+				"replacements": [{ "heard": "deckläuen", "meant": "deployen" }],
+				"models": [
+					{ "name": "parakeet-ultra", "label": "Parakeet Ultra", "size": "genau, 2,5 GB", "downloaded": true, "progress": null }
+				],
+				"correct_models": [
+					{ "name": "gemma-4-e4b", "label": "Gemma 4 E4B", "size": "lokal auf der GPU, 5 GB", "downloaded": false, "progress": null },
+					{ "name": "apple", "label": "Apple Intelligence", "size": "im System", "downloaded": true, "progress": null }
+				],
+				"history": [
+					{ "id": 0, "at": null, "text": "Aus dem Log" },
+					{ "id": 1, "at": 1793526480, "text": "Kannst du den Pull Request reviewen?" }
+				],
+				"lang": "en",
+				"report_target": "example-org/dictate#7",
+				"profile": "Example",
+				"platform": "linux",
+				"no_tray": true
+			}
+		},
+		{
+			"type": "candidates",
+			"original": "die Matchdruckers",
+			"edited": "die Merge Requests",
+			"candidates": [{ "heard": "Matchdruckers", "meant": "Merge Requests", "kind": "dictionary" }]
+		},
+		{ "type": "tried", "text": "bei Solistik", "result": "bei SOLISTIQ" },
+		{ "type": "captured", "row": 0, "key": "f18", "message": "" },
+		{ "type": "captured", "row": 1, "key": null, "message": "Abgebrochen" },
+		{ "type": "mic_level", "db": -30.5, "done": true },
+		{ "type": "note", "text": "Kopiert" },
+		{ "type": "show", "page": "history", "entry": 7 },
+		{
+			"type": "meeting",
+			"meeting": {
+				"running": true,
+				"started": 1793526480,
+				"lines": [{ "id": 0, "who": "others", "at": 1793526482.5, "text": "Wie weit ist Nordlicht?", "live": false }],
+				"cards": [
+					{
+						"id": 0,
+						"at": 1793526490.25,
+						"title": "Nordlicht: Pilot läuft",
+						"body": "- Deal **Pilot** seit 12.10.\n- [Im CRM](https://crm.example.com/accounts/1)",
+						"question": null,
+						"pending": false
+					}
+				],
+				"status": {
+					"agent": "listening",
+					"activity": "",
+					"mic_db": -38.5,
+					"system_db": null,
+					"system_audio": "off",
+					"problem": ""
+				},
+				"highlights": ["Nordlicht: Pilot läuft seit 12.10., **Go-live 1.12.**"]
+			}
+		},
+		{ "type": "meeting_line", "line": { "id": 3, "who": "me", "at": 1793526500.0, "text": "Genau, und", "live": true } },
+		{
+			"type": "meeting_card",
+			"card": { "id": 1, "at": 1793526510.5, "title": "", "body": "", "question": "Wer ist bei Nordlicht zuständig?", "pending": true }
+		},
+		{
+			"type": "meeting_status",
+			"status": {
+				"agent": "thinking",
+				"activity": "Sucht im CRM",
+				"mic_db": -41.0,
+				"system_db": -30.5,
+				"system_audio": "on",
+				"problem": ""
+			}
+		},
+		{
+			"type": "meeting_highlights",
+			"highlights": ["Nächster Termin: **5.11., 16 Uhr**", "Kontakt: Jana Vogt (BD)"]
+		}
+	]
+}

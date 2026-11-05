@@ -1,0 +1,35 @@
+# id	dict	text
+# dict = 1: the sentence has words of the eval dictionary (eval/profile.toml, the eval scripts pass it), they must come out spelled so.
+# Edit freely, but keep ids: eval/baseline.json is measured on this list.
+s01	0	Kannst du mir bitte die Rechnung von letzter Woche noch einmal schicken?
+s02	0	Morgen um zehn Uhr haben wir ein Treffen mit dem Kunden in München.
+s03	0	Ich habe das Paket gestern abgeholt und direkt ins Büro gebracht.
+s04	0	Wir sollten die Präsentation vor dem Wochenende fertig machen.
+s05	0	Das Wetter ist heute viel besser als gestern, wir können draußen essen.
+s06	0	Bitte denk daran, dass der Termin auf Donnerstag verschoben wurde.
+s07	0	Die Zahlen für das dritte Quartal sehen insgesamt ziemlich gut aus.
+s08	0	Ich rufe dich später zurück, sobald ich aus dem Meeting komme.
+s09	0	Hast du schon gehört, dass die Preise im nächsten Monat steigen?
+s10	0	Dafür brauchen wir noch eine Freigabe von der Geschäftsführung.
+s11	0	Am Montag fahre ich mit dem Zug nach Hamburg und bleibe bis Mittwoch.
+s12	0	Könntest du kurz prüfen, ob die Lieferung vollständig angekommen ist?
+s13	0	Mir fällt gerade ein, dass wir den Vertrag noch unterschreiben müssen.
+s14	0	Vielen Dank für die schnelle Antwort, das hilft mir sehr weiter.
+s15	0	Wir treffen uns um halb drei am Eingang und gehen dann gemeinsam hoch.
+s16	0	Der Bericht ist leider noch nicht fertig, ich schicke ihn heute Abend.
+s17	1	Hallo, ich bin Thomas von SOLISTIQ und rufe wegen des Angebots an.
+s18	1	Im Agent Swarm läuft der Nightly Build jetzt jede Nacht automatisch.
+s19	1	Kannst du den Pull Request bitte noch einmal reviewen und dann mergen?
+s20	1	Ich habe den Commit gerade gepusht, du kannst direkt deployen.
+s21	1	Dictate nutzt Parakeet auf der Neural Engine und ist dadurch sehr schnell.
+s22	1	Die Tourenplanung im Monorepo braucht noch einen neuen Forecast.
+s23	1	Schick mir den Link zum Grafana Dashboard bitte in Slack.
+s24	1	Claude und Codex haben heute Nacht drei Pull Requests geöffnet.
+s25	1	Wir müssen die ISMS Dokumente vor dem Audit noch einmal durchgehen.
+s26	1	Im CRM fehlt noch der Ansprechpartner für den neuen Kunden.
+s27	1	Notion und Slack sind jetzt mit dem Backlog verbunden.
+s28	1	Der Server läuft auf Proxmox, davor steht Ansible und ein Kubernetes Cluster.
+s29	1	Das Frontend ist in Svelte geschrieben, die Tools in Rust und Python.
+s30	1	Opus schreibt den Code, Sonnet prüft ihn, und Terraform liefert die Server.
+s31	1	Der Agent Swarm startet jede Sitzung in einem eigenen Branch.
+s32	1	Bitte leg das im Backlog an und schreib die Tickets für den Nightly Build.

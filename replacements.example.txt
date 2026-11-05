@@ -1,0 +1,6 @@
+# Word replacements, applied to every transcript.
+# Copy to ~/Library/Application Support/dictate/replacements.txt and edit.
+# One rule per line: `from[, from…] => to`. Matching ignores case and only hits whole words.
+
+Solistik, Solistic, Solistiek, Solistiekw => SOLISTIQ
+parakeet ultra => Parakeet Ultra
