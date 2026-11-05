@@ -170,6 +170,12 @@ what to try first: `docs/linux.md`.
 
 ## Rules
 
+- **This repository is public**: every commit, message, issue and PR is visible to everyone, for
+  good. Nothing internal of any team goes here, the maintainers' own included: no company names
+  in features, no internal hosts, tools, customers, people, words or plans. What a team needs
+  goes into its profile (or brand folder), kept in its own private team repo (`docs/teams.md`); a
+  new kind of setting becomes a profile key here with a neutral default, the team's value stays in
+  its repo. When you work for such a team, its repo's `AGENTS.md` has the rest.
 - Other agents and services plug in (`agents/`, the profile), they are not built into `src/`.
 - Nothing team-specific in the code: names, hosts, tools, report targets, default words go into a
   profile (keys in `core/src/profile.rs`; the built-in `profiles/default.toml` stays neutral, a test
