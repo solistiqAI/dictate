@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The voice level bars of assets/app-icon.svg, centred in the adaptive icon's safe zone. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:scaleX="0.0957"
+        android:scaleY="0.0957"
+        android:translateX="5.002"
+        android:translateY="5.002">
+        <path android:fillColor="#FFFFFF" android:pathData="M332,437a28,28 0,0 1,28,28v94a28,28 0,0 1,-56,0v-94a28,28 0,0 1,28,-28z" />
+        <path android:fillColor="#FFFFFF" android:pathData="M422,362a28,28 0,0 1,28,28v244a28,28 0,0 1,-56,0v-244a28,28 0,0 1,28,-28z" />
+        <path android:fillColor="#FFFFFF" android:pathData="M512,282a28,28 0,0 1,28,28v404a28,28 0,0 1,-56,0v-404a28,28 0,0 1,28,-28z" />
+        <path android:fillColor="#FFFFFF" android:pathData="M602,382a28,28 0,0 1,28,28v204a28,28 0,0 1,-56,0v-204a28,28 0,0 1,28,-28z" />
+        <path android:fillColor="#FFFFFF" android:pathData="M692,447a28,28 0,0 1,28,28v74a28,28 0,0 1,-56,0v-74a28,28 0,0 1,28,-28z" />
+    </group>
+</vector>

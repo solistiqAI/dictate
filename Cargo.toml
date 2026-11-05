@@ -1,8 +1,10 @@
 # Two crates: `dictate` (this folder, the macOS app and CLI) and `dictate-core` (`core/`, the
 # platform-free part that builds and tests on Linux too; see AGENTS.md).
 [workspace]
-members = ["core"]
-# `cargo build/test/clippy` at the root cover both.
+members = ["core", "android/rust"]
+# `cargo build/test/clippy` at the root cover both. The Android JNI crate (`android/rust`,
+# docs/android.md) is built for the phone by Gradle through cargo-ndk; on the host
+# `cargo test -p dictate-android` checks it without the NDK.
 default-members = [".", "core"]
 
 [package]

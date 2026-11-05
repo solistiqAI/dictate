@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The voice keyboard (DictateKeyboard). No subtypes: Parakeet detects the language itself. -->
+<input-method xmlns:android="http://schemas.android.com/apk/res/android"
+    android:settingsActivity="app.dictate.MainActivity"
+    android:supportsSwitchingToNextInputMethod="true" />

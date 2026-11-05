@@ -28,6 +28,7 @@ directml = ["parakeet-rs/directml"]
 
 # On Linux ONNX Runtime is loaded when the first model loads (`ORT_DYLIB_PATH`, see AGENTS.md)
 # instead of being downloaded and linked at build time: Linux runners without access to
-# cdn.pyke.io, and the unit tests need no runtime at all. macOS links it as before.
-[target.'cfg(target_os = "linux")'.dependencies]
+# cdn.pyke.io, and the unit tests need no runtime at all. Android the same: the app carries
+# `libonnxruntime.so` from the onnxruntime-android AAR (docs/android.md). macOS links it as before.
+[target.'cfg(any(target_os = "linux", target_os = "android"))'.dependencies]
 ort = { version = "=2.0.0-rc.15", default-features = false, features = ["load-dynamic"] }

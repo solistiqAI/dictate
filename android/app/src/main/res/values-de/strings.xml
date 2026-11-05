@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="keyboard_name">Dictate (Sprache)</string>
+    <string name="share_label">Mit Dictate abschreiben</string>
+    <string name="tagline">Sprechen statt tippen, abgeschrieben auf diesem Handy. Weder Ton noch Text verlassen es.</string>
+
+    <string name="setup_title">Einrichten</string>
+    <string name="setup_mic">Mikrofon</string>
+    <string name="setup_mic_ok">Erlaubt</string>
+    <string name="setup_mic_missing">Die Tastatur nimmt nur auf, solange du ihre Taste hältst oder angetippt hast.</string>
+    <string name="setup_mic_allow">Erlauben</string>
+    <string name="setup_model">Sprachmodell</string>
+    <string name="setup_model_ok">Geladen, läuft auf diesem Handy</string>
+    <string name="setup_model_missing">Parakeet Ultra (int8), %1$s, einmal herunterladen.</string>
+    <string name="setup_model_missing_unknown">Parakeet Ultra (int8), etwa 670 MB, einmal herunterladen.</string>
+    <string name="setup_model_metered">Du bist im Mobilfunknetz: besser im WLAN laden.</string>
+    <string name="setup_model_download">Herunterladen</string>
+    <string name="setup_model_downloading">Lädt: %1$s von %2$s</string>
+    <string name="setup_model_cancel">Abbrechen</string>
+    <string name="setup_model_failed">Download fehlgeschlagen: %1$s</string>
+    <string name="setup_model_retry">Nochmal versuchen</string>
+    <string name="setup_keyboard">Tastatur</string>
+    <string name="setup_keyboard_off">Schalte „Dictate (Sprache)“ in den Tastatur-Einstellungen ein.</string>
+    <string name="setup_keyboard_enable">Einstellungen öffnen</string>
+    <string name="setup_keyboard_not_chosen">Eingeschaltet. Wechsle in einem Textfeld zu ihr, oder hier.</string>
+    <string name="setup_keyboard_choose">Tastatur wechseln</string>
+    <string name="setup_keyboard_ok">Eingeschaltet und gewählt</string>
+
+    <string name="try_title">Ausprobieren</string>
+    <string name="try_hint">Hier tippen, dann das Mikrofon halten und sprechen</string>
+    <string name="messages_title">Sprachnachrichten</string>
+    <string name="messages_hint">In WhatsApp oder einem anderen Messenger: Sprachnachricht lange drücken, Teilen, Dictate.</string>
+
+    <string name="recent_title">Zuletzt abgeschrieben</string>
+    <string name="recent_empty">Noch nichts. Abschriften bleiben auf diesem Handy.</string>
+    <string name="recent_clear">Alle löschen</string>
+    <string name="source_keyboard">Tastatur</string>
+    <string name="source_message">Sprachnachricht</string>
+
+    <string name="dictionary_title">Wörterbuch</string>
+    <string name="dictionary_hint">Wörter, auf die die Abschrift korrigiert wird: Namen, Begriffe, Schreibweisen.</string>
+    <string name="dictionary_add">Wort hinzufügen</string>
+    <string name="dictionary_add_button">Hinzufügen</string>
+
+    <string name="copy">Kopieren</string>
+    <string name="share">Teilen</string>
+    <string name="delete">Löschen</string>
+    <string name="remove_word">%1$s entfernen</string>
+    <string name="copied">Kopiert</string>
+
+    <string name="share_title">Sprachnachrichten</string>
+    <string name="share_message">Nachricht %1$d</string>
+    <string name="share_waiting">Wartet</string>
+    <string name="share_decoding">Liest den Ton</string>
+    <string name="share_transcribing">Schreibt %1$s s Ton ab</string>
+    <string name="share_failed">Nicht abgeschrieben: %1$s</string>
+    <string name="share_empty">Keine Sprache gefunden.</string>
+    <string name="share_copy_all">Alle kopieren</string>
+    <string name="share_none">Mit dem Teilen kam kein Ton.</string>
+    <string name="share_needs_model">Lade zuerst das Sprachmodell in Dictate.</string>
+    <string name="share_open_app">Dictate öffnen</string>
+
+    <string name="keyboard_hint">Halten und sprechen, oder antippen zum Starten und Stoppen</string>
+    <string name="keyboard_listening">Hört zu</string>
+    <string name="keyboard_transcribing">Schreibt ab</string>
+    <string name="keyboard_loading">Lädt das Sprachmodell</string>
+    <string name="keyboard_needs_mic">Antippen: Mikrofon in Dictate erlauben</string>
+    <string name="keyboard_needs_model">Antippen: Sprachmodell in Dictate laden</string>
+    <string name="keyboard_mic_failed">Das Mikrofon startete nicht</string>
+    <string name="keyboard_mic">Diktieren</string>
+    <string name="keyboard_backspace">Löschen</string>
+    <string name="keyboard_space">Leerzeichen</string>
+    <string name="keyboard_enter">Eingabe</string>
+    <string name="keyboard_switch">Nächste Tastatur</string>
+
+    <string name="download_title">Dictate-Sprachmodell</string>
+</resources>

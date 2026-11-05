@@ -1,7 +1,8 @@
-//! ONNX Runtime where `ort` loads it at run time (`load-dynamic`, the Linux build): which library
-//! file to load, and `dictate model download onnxruntime`, the pinned release from GitHub into the
-//! data folder. macOS and Windows link it at build time and need neither.
-#![cfg_attr(not(target_os = "linux"), allow(dead_code))]
+//! ONNX Runtime where `ort` loads it at run time (`load-dynamic`, the Linux and Android builds):
+//! which library file to load, and `dictate model download onnxruntime`, the pinned release from
+//! GitHub into the data folder (Linux; the Android app carries the library in its APK). macOS and
+//! Windows link it at build time and need neither.
+#![cfg_attr(not(any(target_os = "linux", target_os = "android")), allow(dead_code))]
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -74,8 +75,8 @@ pub fn resolve() -> Option<PathBuf> {
 
 /// Loads the library [`resolve`] picks, else one on the system's library path (a distribution's
 /// package); must come before any other `ort` call. Nothing found: says where it looked and how
-/// to get it.
-#[cfg(target_os = "linux")]
+/// to get it. On Android the app has loaded it already (`System.loadLibrary`), so the name finds it.
+#[cfg(any(target_os = "linux", target_os = "android"))]
 pub fn init() -> Result<parakeet_rs::ort::environment::EnvironmentBuilder> {
     use parakeet_rs::ort::{LoadDynamicError, init_from};
     if let Some(path) = resolve() {

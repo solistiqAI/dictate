@@ -260,8 +260,9 @@ impl Engine for Cohere {
 }
 
 /// `samples` cut into pieces of at most `max` samples, each cut in the quietest 100 ms of the
-/// piece's last fifth, so a word is rarely split.
-fn pieces(samples: &[f32], max: usize) -> Vec<&[f32]> {
+/// piece's last fifth, so a word is rarely split. Also for long voice messages on a phone
+/// (`android/rust`), where one pass over minutes of audio would not fit in memory.
+pub fn pieces(samples: &[f32], max: usize) -> Vec<&[f32]> {
     let window = MODEL_RATE as usize / 10;
     let mut out = Vec::new();
     let mut rest = samples;
