@@ -30,3 +30,6 @@ Dictate itself is MIT licensed (`LICENSE`). It includes or downloads the followi
 | [PocketTTS](https://huggingface.co/kyutai/pocket-tts) (Kyutai) voices, fetched by FluidAudio | CC-BY-4.0 |
 
 The eval clips in `eval/clips/` are synthetic speech made with macOS system voices (`say`).
+
+The logo in `docs/images/logo.png` carries the SOLISTIQ mark, a trademark of SOLISTIQ GmbH: it is not
+covered by the MIT licence, and forks use their own (the app's own icon is `assets/app-icon.svg`).

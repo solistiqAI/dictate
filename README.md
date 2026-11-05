@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/images/logo.png" width="128" alt="Dictate"></p>
+
 # Dictate
 
 Local dictation for your desktop: hold a key (or a mouse button), talk, let go, and the text
