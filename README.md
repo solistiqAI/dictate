@@ -128,7 +128,23 @@ cd ui && npm ci && npm test && npm run dev                      # the settings w
   same for "Correct".
 - Coding agents: [`AGENTS.md`](AGENTS.md).
 
-Issues and pull requests are welcome.
+## Contributing
+
+Dictate is open to everyone, not only to us: pull requests and issues from anyone are welcome, from
+a typo to a new platform. Especially wanted: a first run on a real Windows PC or Linux desktop,
+mishearings that belong in the eval, and agent plugins for "Talk it over".
+
+- Fork, branch, open a pull request against `main`. For a bigger change, open an issue first so we
+  can agree on the way.
+- Before you push: `cargo fmt`, `cargo clippy --release --all-targets` and `cargo test --release`
+  (on Linux `-p dictate-core`), `npm test` and `npm run check` in `ui/` when you touched the page,
+  and the eval when you touched recognition. Say in the pull request what you could not run (no
+  Mac, no Windows).
+- Nothing team-specific in the code (names, hosts, words: they go into a profile), OS code only in
+  `src/platform/`, no real people's data in tests or fixtures. The details are in
+  [`AGENTS.md`](AGENTS.md), which is written for people as much as for coding agents.
+
+By contributing you agree that your work is published under the MIT licence.
 
 ## Models and licences
 
