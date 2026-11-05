@@ -2,8 +2,7 @@
 
 Local dictation for your desktop: hold a key (or a mouse button), talk, let go, and the text
 appears at your cursor, in any app. Speech recognition runs on your own machine with open speech
-models (**Parakeet Ultra** by default; NVIDIA Parakeet and Nemotron and Cohere Transcribe to choose
-from), on a Mac's Neural Engine, the CPU or an NVIDIA GPU. Your voice and your text never leave the
+models (**Parakeet Ultra** by default, other models like Nemotron to choose from), on a Mac's Neural Engine, the CPU or an NVIDIA GPU. Your voice and your text never leave the
 machine. Made for macOS; Windows and Linux are in beta.
 
 <p align="center"><img src="docs/images/overlay.png" width="560" alt="The recorder: a small pill at the bottom of the screen with a level meter, the live transcript above it"></p>
