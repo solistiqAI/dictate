@@ -1931,7 +1931,7 @@ mod tests {
     fn prompt_says_read_only_and_takes_extra_instructions() {
         let mut config = Config::default();
         assert!(prompt(&config).contains("READ ONLY"));
-        assert!(prompt(&config).contains("The meeting itself counts"));
+        assert!(prompt(&config).contains("Two sources feed it"));
         // In the UI language (German in tests), every placeholder filled.
         assert!(prompt(&config).contains("Answer format (German, Markdown)"));
         assert!(prompt(&config).contains("\n## Das Wichtigste\n"));

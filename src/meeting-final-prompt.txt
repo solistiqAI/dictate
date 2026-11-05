@@ -4,7 +4,7 @@ Write the final "{highlights}" of the meeting, for the person to read afterwards
 
 Answer in {language}, exactly in this form and nothing else:
 ## {highlights}
-- 3 to 10 bullets, most important first, each under 20 words
+- 3 to 10 bullets, most important first, each under 20 words; dates, times, amounts and who does what in **bold**
 
 If nothing in the meeting is worth keeping, answer exactly:
 -

@@ -1,8 +1,10 @@
 <script lang="ts">
 	// "Das Wichtigste": the agent's short list of the meeting's key facts, pinned above the cards.
 	// The agent sends the whole list each time it changes; lines that are new light up briefly.
+	// Dates, times, amounts and percentages are bold (`emphasize`), so they stand out at a glance.
 	import Icon from '../components/Icon.svelte';
 	import { send } from '../lib/bridge.svelte.ts';
+	import { emphasize } from '../lib/emphasis.ts';
 	import { t } from '../lib/i18n.svelte.ts';
 	import { links, markdown } from './attach.ts';
 
@@ -37,7 +39,7 @@
 	{#if open}
 		<ul {@attach links}>
 			{#each items as item (item)}
-				<li class:fresh={fresh.has(item)} {@attach markdown(item)}></li>
+				<li class:fresh={fresh.has(item)} {@attach markdown(emphasize(item))}></li>
 			{/each}
 		</ul>
 	{/if}
@@ -111,7 +113,7 @@
 		margin: 0;
 		padding: 0 12px 10px 26px;
 		list-style: none;
-		font-size: 12.5px;
+		font-size: 13px;
 		line-height: 1.4;
 		-webkit-user-select: text;
 		user-select: text;
@@ -137,7 +139,8 @@
 		margin: 0;
 	}
 	li :global(strong) {
-		font-weight: 650;
+		font-weight: 700;
+		color: color-mix(in srgb, var(--accent) 55%, var(--text));
 	}
 	li :global(code) {
 		font-family: ui-monospace, 'SF Mono', Menlo, monospace;
