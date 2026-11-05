@@ -19,7 +19,7 @@ use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use anyhow::{Context, Result, anyhow};
+use anyhow::{Context, Result, anyhow, bail, ensure};
 use serde_json::{Value, json};
 
 use crate::asr::{self, Asr};
@@ -29,6 +29,10 @@ use crate::protocol::{MeetingCard, MeetingLine, MeetingStatus};
 use crate::replace::Corrector;
 
 const PROMPT: &str = include_str!("meeting-prompt.txt");
+/// After the meeting: "Das Wichtigste" once more, over the whole transcript.
+const FINAL_PROMPT: &str = include_str!("meeting-final-prompt.txt");
+/// How long the final pass may take before the meeting's list stays as it was.
+const FINAL_TIMEOUT: Duration = Duration::from_secs(120);
 /// The first message, before anyone speaks: load the tools a lookup needs most (the profile's
 /// `warmup_tools`; their schemas are deferred, fetching them costs a round trip in the first
 /// lookup otherwise), then wait.
@@ -1479,7 +1483,28 @@ fn run(setup: Setup, sink: Sink, asked: Receiver<String>, stop: &AtomicBool) -> 
         s.mic_db = None;
         s.system_db = None;
     });
-    let list = shared.highlights.lock().unwrap().clone();
+    let mut list = shared.highlights.lock().unwrap().clone();
+    let path = shared.transcript.lock().unwrap().path.clone();
+    if lines.next > 0 {
+        shared.status(|s| {
+            s.agent = "thinking".into();
+            s.activity =
+                crate::text::pick("Das Wichtigste zum Schluss …", "Key facts at the end …").into();
+        });
+        let transcript = std::fs::read_to_string(&path).unwrap_or_default();
+        match final_highlights(&config, &transcript, &list) {
+            Ok(Some(last)) => {
+                list = last;
+                shared.highlights(list.clone());
+            }
+            Ok(None) => eprintln!("souffleur: nothing to keep at the end"),
+            Err(e) => eprintln!("souffleur: key facts at the end: {e:#}"),
+        }
+        shared.status(|s| {
+            s.agent = "off".into();
+            s.activity = String::new();
+        });
+    }
     let path = {
         let mut transcript = shared.transcript.lock().unwrap();
         transcript.highlights(&list);
@@ -1497,6 +1522,75 @@ fn run(setup: Setup, sink: Sink, asked: Receiver<String>, stop: &AtomicBool) -> 
         let _ = t.join();
     }
     Ok(())
+}
+
+/// The final "Das Wichtigste" over the whole transcript (lines, cards, the list so far): one
+/// `claude -p` without tools. `None` when the agent finds nothing worth keeping.
+fn final_highlights(
+    config: &Config,
+    transcript: &str,
+    list: &[String],
+) -> Result<Option<Vec<String>>> {
+    let binary = claude_binary().context("Claude Code not found")?;
+    let language = crate::text::pick("German", "English");
+    let mut input = FINAL_PROMPT
+        .replace("{language}", language)
+        .replace("{highlights}", highlights_heading());
+    input.push_str("\n<transcript>\n");
+    input.push_str(transcript.trim());
+    input.push_str("\n</transcript>\n");
+    if !list.is_empty() {
+        input.push_str("\nPinned during the meeting:\n");
+        for l in list {
+            input.push_str(&format!("- {l}\n"));
+        }
+    }
+    let mut child = Command::new(&binary)
+        .args(["-p", "--output-format", "text", "--no-session-persistence"])
+        .args(["--tools", ""])
+        .args(["--model", config.meeting_model.trim()])
+        .current_dir(std::env::temp_dir())
+        .env("PATH", agent_path())
+        .env("MAX_THINKING_TOKENS", "0")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .with_context(|| format!("start {}", binary.display()))?;
+    let mut stdin = child.stdin.take().context("claude stdin")?;
+    std::thread::spawn(move || {
+        let _ = stdin.write_all(input.as_bytes());
+    });
+    let mut stdout = child.stdout.take().context("claude stdout")?;
+    let reader = std::thread::spawn(move || {
+        let mut out = String::new();
+        let _ = stdout.read_to_string(&mut out);
+        out
+    });
+    let started = Instant::now();
+    let status = loop {
+        if let Some(status) = child.try_wait()? {
+            break status;
+        }
+        if started.elapsed() > FINAL_TIMEOUT {
+            let _ = child.kill();
+            let _ = child.wait();
+            bail!("no answer within {} s", FINAL_TIMEOUT.as_secs());
+        }
+        std::thread::sleep(Duration::from_millis(200));
+    };
+    let out = reader.join().unwrap_or_default();
+    ensure!(
+        status.success(),
+        "claude: {}",
+        out.lines().last().unwrap_or("failed")
+    );
+    Ok(final_list(&out))
+}
+
+/// The final pass's answer: the list under the heading, `None` for "-" or no list.
+fn final_list(answer: &str) -> Option<Vec<String>> {
+    highlights(cards(answer)).1.filter(|l| !l.is_empty())
 }
 
 /// Refreshes the line of the utterance being spoken.
@@ -1837,6 +1931,7 @@ mod tests {
     fn prompt_says_read_only_and_takes_extra_instructions() {
         let mut config = Config::default();
         assert!(prompt(&config).contains("READ ONLY"));
+        assert!(prompt(&config).contains("The meeting itself counts"));
         // In the UI language (German in tests), every placeholder filled.
         assert!(prompt(&config).contains("Answer format (German, Markdown)"));
         assert!(prompt(&config).contains("\n## Das Wichtigste\n"));
@@ -1859,5 +1954,32 @@ mod tests {
         ];
         assert!(warmup(&tools).contains("(select:mcp__crm__search,mcp__notion__notion-search)"));
         assert!(!warmup(&[]).contains("select:"));
+    }
+
+    #[test]
+    fn the_last_key_facts_come_from_the_final_answer() {
+        assert_eq!(
+            final_list(
+                "## Das Wichtigste\n- Lieferung am Donnerstag\n- Angebot bis Freitag (Kai)\n"
+            ),
+            Some(vec![
+                "Lieferung am Donnerstag".to_string(),
+                "Angebot bis Freitag (Kai)".to_string()
+            ])
+        );
+        assert_eq!(
+            final_list("## Key facts\n- Pilot starts in May\n")
+                .unwrap()
+                .len(),
+            1
+        );
+        assert_eq!(final_list("-"), None);
+        assert_eq!(final_list("## Das Wichtigste\n"), None);
+        assert!(
+            !FINAL_PROMPT
+                .replace("{highlights}", "x")
+                .replace("{language}", "y")
+                .contains('{')
+        );
     }
 }
