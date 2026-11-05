@@ -1,14 +1,17 @@
 # Dictate
 
-Local dictation for macOS. Hold a key (or a mouse button), talk, let go: the text appears at your
-cursor, in any app. Speech recognition runs on your Mac's Neural Engine with **Parakeet Ultra**, so
-your voice and your text never leave the machine.
+Local dictation for your desktop: hold a key (or a mouse button), talk, let go, and the text
+appears at your cursor, in any app. Speech recognition runs on your own machine with open speech
+models (**Parakeet Ultra** by default; NVIDIA Parakeet and Nemotron and Cohere Transcribe to choose
+from), on a Mac's Neural Engine, the CPU or an NVIDIA GPU. Your voice and your text never leave the
+machine. Made for macOS; Windows and Linux are in beta.
 
 <p align="center"><img src="docs/images/overlay.png" width="560" alt="The recorder: a small pill at the bottom of the screen with a level meter, the live transcript above it"></p>
 
-- **Fast and private:** 25 European languages (German and English included, detected per
-  recording), about a tenth of a second for a sentence, no account, no cloud.
-- **Your words:** a dictionary for names and jargon, replacements (`Solis tick => SOLISTIQ`), and it learns
+- **Fast and private:** 25 European languages with the default model (German and English
+  included, detected per recording), about a tenth of a second for a sentence on a Mac, no
+  account, no cloud.
+- **Your words:** a dictionary for names and jargon, replacements (`so listig => SOLISTIQ`), and it learns
   from the fixes you make right after a paste.
 - **Clean text:** spoken commands ("new paragraph", "bullet point"), filler words dropped, and
   optionally a local language model that removes self-corrections ("at three, no, at five") and
@@ -19,9 +22,9 @@ your voice and your text never leave the machine.
   any agent you plug in.
 - **For teams:** a shared dictionary and settings from a profile your team keeps in its own repo.
 
-macOS 14 or later (Apple silicon for the Neural Engine; other Macs run the model on the CPU).
-Windows and Linux builds exist as betas that have not run on real hardware yet
-([below](#windows-and-linux-beta)). MIT licensed.
+**Platforms:** macOS 14 or later (Apple silicon for the Neural Engine; other Macs use the CPU).
+Windows 10/11 and Linux (X11, Wayland) are betas: they build and have the whole dictation loop,
+but have not run on real hardware yet ([below](#windows-and-linux-beta)). MIT licensed.
 
 ## Install
 
@@ -92,12 +95,12 @@ Every feature in detail, with how it was tested: [`docs/features.md`](docs/featu
 What a team shares lives in a **profile**, not in the code: default dictionary words, what the
 Souffleur may use and knows about you, which agent answers in "Talk it over", which web pages may
 start a dictation, and where anonymous usage reports go (nowhere by default). A team keeps its
-profile, icon and signing identity in a private repo of its own, and every Mac picks up a changed
+profile, icon and signing identity in a private repo of its own, and every machine picks up a changed
 profile within a day, without a new build. How: [`docs/teams.md`](docs/teams.md).
 
 ## Privacy
 
-Recognition, correction and layout run on your Mac, and the history keeps only text. Something
+Recognition, correction and layout run on your machine, and the history keeps only text. Something
 leaves the machine only when you set it up:
 
 - the Souffleur's and "Talk it over"'s messages go to the agent you use (Claude Code: Anthropic's
