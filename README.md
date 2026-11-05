@@ -20,12 +20,18 @@ your voice and your text never leave the machine.
 - **For teams:** a shared dictionary and settings from a profile your team keeps in its own repo.
 
 macOS 14 or later (Apple silicon for the Neural Engine; other Macs run the model on the CPU).
-Windows and Linux builds exist as betas that have not run on real hardware yet. MIT licensed.
+Windows and Linux builds exist as betas that have not run on real hardware yet
+([below](#windows-and-linux-beta)). MIT licensed.
 
 ## Install
 
-There is no download yet: Dictate is built from source. You need Rust (1.99+), Node.js, the Xcode
-Command Line Tools and CMake (`brew install cmake`).
+There is no download yet: Dictate is built from source. On every platform you need
+[Rust](https://rustup.rs) (1.99+), [Node.js](https://nodejs.org) (for the settings window) and
+CMake; the rest depends on the system.
+
+### macOS (14 or later)
+
+Also needs the Xcode Command Line Tools (`xcode-select --install`); CMake via `brew install cmake`.
 
 ```sh
 git clone https://github.com/solistiqAI/dictate.git && cd dictate
@@ -48,11 +54,28 @@ Optional: `dictate model download gemma-4-e4b` (5 GB) for "Correct" and "Format"
 list` shows the other recognition models (CPU, int8, more languages). Something not working:
 [troubleshooting](docs/features.md#first-start).
 
+### Windows and Linux (beta)
+
+Both compile and have the whole dictation loop in code (triggers, paste, overlay, tray, settings
+window, recognition on the CPU or GPU), but nobody has run them on a real PC or desktop yet, and
+there is no installer: you build the binary and start it. In short:
+
+- **Windows 10/11:** Visual Studio 2022 Build Tools ("Desktop development with C++"), then
+  `cd ui && npm ci && npm run build && cd ..`, `cargo build --release` (`--features vulkan` or
+  `cuda` for the GPU), `dictate model download`, `dictate`. Details:
+  [`docs/windows.md`](docs/windows.md).
+- **Linux (X11 or Wayland):** the GTK/WebKitGTK `-dev` packages, then the same page build,
+  `cargo build --release`, `dictate model download onnxruntime`, `dictate model download`,
+  `dictate`. Packages, Wayland setup and details: [`docs/linux.md`](docs/linux.md).
+
+Reports from a first run are very welcome.
+
 ## Using it
 
-- **Dictate:** hold Fn (or the trigger you set: a right-hand modifier, F13–F20, a key combination,
-  a mouse button), speak, let go. A tap starts hands-free mode, Esc cancels.
-- **Settings** (menu bar icon → Settings): triggers, microphone, language, dictionary, replacements,
+- **Dictate:** hold Fn (Windows and Linux: right Alt or F13), or the trigger you set: a right-hand
+  modifier, F13–F20, a key combination, a mouse button. Speak, let go. A tap starts hands-free
+  mode, Esc cancels.
+- **Settings** (menu bar or tray icon → Settings): triggers, microphone, language, dictionary, replacements,
   history. The window is in German or English and follows the system.
 - **Correct / Format** (in German: Korrigieren / Formatieren): a shortcut that runs the dictation
   through a local model (Gemma 4 E4B via llama.cpp, or Apple's on-device model). It only deletes
@@ -82,13 +105,6 @@ leaves the machine only when you set it up:
 - a daily anonymous usage report (counts, timings, problem messages, learned word pairs; never what
   you dictated) goes where your team's profile says: an issue in a private GitHub repo or a URL of
   its own. The built-in profile sends none.
-
-## Windows and Linux (beta)
-
-Both compile and have the whole dictation loop in code (triggers, paste, overlay, tray, settings
-window, recognition on the CPU or GPU), but nobody has run them on a real PC or desktop yet. Status,
-how to build and what to try first: [`docs/windows.md`](docs/windows.md),
-[`docs/linux.md`](docs/linux.md). Reports from a first run are very welcome.
 
 ## Development
 
