@@ -50,7 +50,21 @@ by itself (its default). Nothing of the notifications is kept or logged but the 
 Over an open WhatsApp chat, a dark strip below WhatsApp's header shows that chat's transcribed
 voice messages of the last three days (`ChatStrip`, from `VoiceNoteLog`): one line with the newest;
 a tap shows them all, each in full (in a group with the sender), a long press on one copies it, ✕
-hides the strip until the next voice message of that chat. It needs the floating button's
+folds it into a small chip ("🎤 3") at the right, which opens it again; the chat's next voice
+message opens it by itself. Every transcript is also in the app's recent transcripts.
+
+Try it without anyone sending a voice message (debug build only; `TestVoiceNoteReceiver`, callable
+from adb only, it needs `DUMP`): open a WhatsApp chat, then
+
+```sh
+say -v Anna -o t.aiff "Hallo, das ist ein Test." && ffmpeg -i t.aiff -ac 1 -c:a libopus t.opus
+adb push t.opus /sdcard/Android/data/app.dictate/files/test.opus
+adb shell am broadcast -n app.dictate/.TestVoiceNoteReceiver \
+    --es file /sdcard/Android/data/app.dictate/files/test.opus --es sender Test
+```
+
+The file goes through the same steps as a real voice message (`VoiceNoteListener.handle`): the
+notification, and the strip in the open chat (`--es chat <name>` for another one). It needs the floating button's
 accessibility service, which then also reads the open chat's name from WhatsApp's header (view id
 `conversation_contact_name`, hence `flagReportViewIds`; matched against the notification's chat
 name without case, spaces and direction marks). A WhatsApp update that renames that view hides
@@ -170,6 +184,9 @@ android/
 - **Long voice messages** go through the model in pieces of at most 60 s, cut at quiet moments
   (`engine::pieces`, which Cohere uses too). One pass over minutes of audio would need more memory
   than a phone gives an app. Messages longer than 15 minutes are cut at 15 minutes.
+- **The microphone button** (keyboard, floating button, listening dialog: `MicButton`) is the app
+  icon: a dark rounded tile with the five level bars; recording, the rim turns red and the bars
+  move with the voice. Notifications use the bars as their small icon (`ic_bars`).
 - **The keyboard is plain Android views**, not Compose: an input method's window has none of the
   lifecycle Compose expects. Hold and tap are told apart by `MicGesture` (a press shorter than
   0.4 s is a tap: keep recording until the next tap). Hands-free (opened from another keyboard,

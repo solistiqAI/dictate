@@ -19,8 +19,9 @@ import android.widget.Toast
 
 /**
  * The strip over an open WhatsApp chat with its transcribed voice messages: one line with the
- * newest; a tap shows them all (newest first, each in full), a long press on one copies it, × hides
- * the strip until the next voice message of that chat.
+ * newest; a tap shows them all (newest first, each in full), a long press on one copies it. ✕
+ * folds it into a small chip ("🎤 3") at the right, which opens it again; the chat's next voice
+ * message opens it by itself.
  */
 @SuppressLint("SetTextI18n")
 class ChatStrip(private val context: Context, private val windows: WindowManager) {
@@ -29,15 +30,22 @@ class ChatStrip(private val context: Context, private val windows: WindowManager
     private var expanded = false
     private var top = 0
     private var onClose: () -> Unit = {}
+    private var onOpen: () -> Unit = {}
+    private var folded = false
     private val density = context.resources.displayMetrics.density
 
-    /** [notes]: newest first; [top]: just below the chat's header, in screen pixels. */
-    fun show(notes: List<VoiceNote>, top: Int, group: Boolean, onClose: () -> Unit) {
+    /**
+     * [notes]: newest first; [top]: just below the chat's header, in screen pixels; [folded]: only
+     * the chip.
+     */
+    fun show(notes: List<VoiceNote>, top: Int, group: Boolean, folded: Boolean, onClose: () -> Unit, onOpen: () -> Unit) {
         if (notes != shown) expanded = false
         this.onClose = onClose
-        val changed = notes != shown || this.top != top || view == null
+        this.onOpen = onOpen
+        val changed = notes != shown || this.top != top || view == null || this.folded != folded
         shown = notes
         this.top = top
+        this.folded = folded
         if (changed) render(group)
     }
 
@@ -49,6 +57,10 @@ class ChatStrip(private val context: Context, private val windows: WindowManager
     }
 
     private fun render(group: Boolean) {
+        if (folded) {
+            chip()
+            return
+        }
         val root = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             background = GradientDrawable().apply {
@@ -128,14 +140,41 @@ class ChatStrip(private val context: Context, private val windows: WindowManager
             x = margin
             y = top + dp(4)
         }
-        val old = view
-        if (old == null) {
-            windows.addView(root, layout)
-        } else {
-            runCatching { windows.removeView(old) }
-            windows.addView(root, layout)
+        place(root, layout)
+    }
+
+    /** Folded: "🎤 3" at the right below the header; a tap opens the strip again. */
+    private fun chip() {
+        val root = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            background = GradientDrawable().apply {
+                cornerRadius = 16 * density
+                setColor(BACKGROUND)
+            }
+            setPadding(dp(12), dp(6), dp(12), dp(6))
+            contentDescription = context.getString(R.string.strip_open)
+            addView(text("🎤 ${shown.size}"))
+            setOnClickListener { onOpen() }
         }
-        view = root
+        val layout = WindowManager.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+            PixelFormat.TRANSLUCENT,
+        ).apply {
+            gravity = Gravity.TOP or Gravity.END
+            x = dp(12)
+            y = top + dp(6)
+        }
+        place(root, layout)
+    }
+
+    private fun place(root: View, layout: WindowManager.LayoutParams) {
+        view?.let { runCatching { windows.removeView(it) } }
+        windows.addView(root, layout)
+        view = root as? LinearLayout
     }
 
     /** "11:42", "Mo. 11:42"; in a group with the sender first. */

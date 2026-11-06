@@ -37,7 +37,7 @@ class FloatingMicService : AccessibilityService() {
     private lateinit var bubble: LiveBubble
     private lateinit var strip: ChatStrip
 
-    /** Per chat: the newest voice message the user closed the strip on. */
+    /** Per chat: the newest voice message when the user folded the strip into its chip. */
     private val closed = HashMap<String, Long>()
 
     /** Tapped, waiting for the microphone service before recording. */
@@ -115,15 +115,30 @@ class FloatingMicService : AccessibilityService() {
         val since = System.currentTimeMillis() - STRIP_DAYS * DateUtils.DAY_IN_MILLIS
         val notes = AppFiles(this).voiceNotes.forChat(chat.name, since)
         val key = chat.name.lowercase()
-        if (notes.isEmpty() || (closed[key] ?: 0L) >= notes.first().time) {
+        if (notes.isEmpty()) {
             strip.hide()
             return
         }
-        strip.show(notes, chat.bottom, chat.group) {
-            closed[key] = notes.first().time
-            strip.hide()
-        }
+        // Folded until the chat's next voice message.
+        val folded = (closed[key] ?: 0L) >= notes.first().time
+        strip.show(
+            notes,
+            chat.bottom,
+            chat.group,
+            folded,
+            onClose = {
+                closed[key] = notes.first().time
+                updateStrip()
+            },
+            onOpen = {
+                closed.remove(key)
+                updateStrip()
+            },
+        )
     }
+
+    /** The WhatsApp chat in front, for the debug build's test voice message. */
+    fun openChatName(): String? = openChat()?.name
 
     private class OpenChat(val name: String, val bottom: Int, val group: Boolean)
 

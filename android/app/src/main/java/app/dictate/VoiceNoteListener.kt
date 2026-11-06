@@ -90,24 +90,7 @@ class VoiceNoteListener : NotificationListenerService() {
             Log.w(Engine.TAG, "voice message: no new file in WhatsApp's folder")
             return
         }
-        val decoded = try {
-            AudioDecoder.decode(this, Uri.fromFile(file))
-        } catch (e: Throwable) {
-            Log.w(Engine.TAG, "voice message not decoded: ${Engine.describe(e)}")
-            return
-        }
-        Engine.transcribe(this, decoded.samples, decoded.rate) { result ->
-            result.onSuccess { text ->
-                if (text.isBlank()) return@onSuccess
-                val line = VoiceNotes.line(who, text)
-                val now = System.currentTimeMillis()
-                AppFiles(this).transcripts.add(Transcript(now, Transcript.Source.MESSAGE, line))
-                if (chat.isNotBlank()) AppFiles(this).voiceNotes.add(VoiceNote(now, chat, sender, text))
-                // An open chat's strip shows it at once.
-                FloatingMicService.instance?.voiceNotesChanged()
-                show(who, text, open)
-            }.onFailure { Log.w(Engine.TAG, "voice message not transcribed: ${Engine.describe(it)}") }
-        }
+        handle(this, file, who, chat, sender, open)
     }
 
     /** The new file once its size stopped changing (downloaded), or null after a while. */
@@ -131,44 +114,70 @@ class VoiceNoteListener : NotificationListenerService() {
         return null
     }
 
-    private fun show(who: String?, text: String, open: PendingIntent?) {
-        val manager = getSystemService(NotificationManager::class.java)
-        manager.createNotificationChannel(
-            NotificationChannel(CHANNEL, getString(R.string.voice_notes_channel), NotificationManager.IMPORTANCE_DEFAULT)
-                .apply {
-                    // WhatsApp has rung already.
-                    setSound(null, null)
-                    enableVibration(false)
-                },
-        )
-        val id = ids.incrementAndGet()
-        val copy = PendingIntent.getBroadcast(
-            this,
-            id,
-            Intent(this, CopyReceiver::class.java).putExtra(CopyReceiver.TEXT, text).putExtra(CopyReceiver.ID, id),
-            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
-        )
-        val tap = open ?: PendingIntent.getActivity(
-            this,
-            0,
-            Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
-            PendingIntent.FLAG_IMMUTABLE,
-        )
-        val notification = Notification.Builder(this, CHANNEL)
-            .setSmallIcon(R.drawable.ic_mic)
-            .setContentTitle("🎤 " + (who ?: getString(R.string.voice_notes_someone)))
-            .setContentText(text)
-            .setStyle(Notification.BigTextStyle().bigText(text))
-            .setContentIntent(tap)
-            .setAutoCancel(true)
-            .addAction(Notification.Action.Builder(null, getString(R.string.copy), copy).build())
-            .build()
-        // The text itself is never logged; it is in the recent transcripts.
-        runCatching { manager.notify(TAG_NOTIFICATION, id, notification) }
-            .onFailure { Log.w(Engine.TAG, "transcript notification not shown: ${it.javaClass.simpleName}") }
-    }
-
     companion object {
+        /**
+         * A voice message's file to text: decode, transcribe, keep (recent transcripts, the chat's
+         * strip) and show the notification. On a worker thread; the debug build's test trigger
+         * (TestVoiceNoteReceiver) runs the same.
+         */
+        fun handle(context: Context, file: File, who: String?, chat: String, sender: String, open: PendingIntent?) {
+            val decoded = try {
+                AudioDecoder.decode(context, Uri.fromFile(file))
+            } catch (e: Throwable) {
+                Log.w(Engine.TAG, "voice message not decoded: ${Engine.describe(e)}")
+                return
+            }
+            Engine.transcribe(context, decoded.samples, decoded.rate) { result ->
+                result.onSuccess { text ->
+                    if (text.isBlank()) return@onSuccess
+                    val line = VoiceNotes.line(who, text)
+                    val now = System.currentTimeMillis()
+                    AppFiles(context).transcripts.add(Transcript(now, Transcript.Source.MESSAGE, line))
+                    if (chat.isNotBlank()) AppFiles(context).voiceNotes.add(VoiceNote(now, chat, sender, text))
+                    // An open chat's strip shows it at once.
+                    FloatingMicService.instance?.voiceNotesChanged()
+                    show(context, who, text, open)
+                }.onFailure { Log.w(Engine.TAG, "voice message not transcribed: ${Engine.describe(it)}") }
+            }
+        }
+
+        private fun show(context: Context, who: String?, text: String, open: PendingIntent?) {
+            val manager = context.getSystemService(NotificationManager::class.java)
+            manager.createNotificationChannel(
+                NotificationChannel(CHANNEL, context.getString(R.string.voice_notes_channel), NotificationManager.IMPORTANCE_DEFAULT)
+                    .apply {
+                        // WhatsApp has rung already.
+                        setSound(null, null)
+                        enableVibration(false)
+                    },
+            )
+            val id = ids.incrementAndGet()
+            val copy = PendingIntent.getBroadcast(
+                context,
+                id,
+                Intent(context, CopyReceiver::class.java).putExtra(CopyReceiver.TEXT, text).putExtra(CopyReceiver.ID, id),
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+            )
+            val tap = open ?: PendingIntent.getActivity(
+                context,
+                0,
+                Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                PendingIntent.FLAG_IMMUTABLE,
+            )
+            val notification = Notification.Builder(context, CHANNEL)
+                .setSmallIcon(R.drawable.ic_bars)
+                .setContentTitle("🎤 " + (who ?: context.getString(R.string.voice_notes_someone)))
+                .setContentText(text)
+                .setStyle(Notification.BigTextStyle().bigText(text))
+                .setContentIntent(tap)
+                .setAutoCancel(true)
+                .addAction(Notification.Action.Builder(null, context.getString(R.string.copy), copy).build())
+                .build()
+            // The text itself is never logged; it is in the recent transcripts.
+            runCatching { manager.notify(TAG_NOTIFICATION, id, notification) }
+                .onFailure { Log.w(Engine.TAG, "transcript notification not shown: ${it.javaClass.simpleName}") }
+        }
+
         private const val CHANNEL = "voice_notes"
         const val TAG_NOTIFICATION = "voice_note"
         private const val SLACK_MILLIS = 30_000L

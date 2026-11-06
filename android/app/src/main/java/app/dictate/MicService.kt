@@ -40,7 +40,7 @@ class MicService : Service() {
             PendingIntent.FLAG_IMMUTABLE,
         )
         val notification = Notification.Builder(this, CHANNEL)
-            .setSmallIcon(R.drawable.ic_mic)
+            .setSmallIcon(R.drawable.ic_bars)
             .setContentTitle(getString(R.string.mic_notification))
             .setOngoing(true)
             .addAction(Notification.Action.Builder(null as Icon?, getString(R.string.mic_stop), stop).build())
