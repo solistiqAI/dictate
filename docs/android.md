@@ -1,15 +1,11 @@
 # Dictate on Android (beta)
 
-**Status (2026-11-05): written and partly checked, never built into an APK, never run on a
-phone.** The Rust side is tested on a Linux host, end to end through JNI with the real model, and
-cross-checked for `aarch64-linux-android` and `x86_64-linux-android`. The Kotlin side is written. Its non-Compose half compiles
-against Android's API 35, and its plain unit tests pass. The Gradle build, the Compose screens, lint
-and the JVM screenshots have not run yet, because the machine this was written on could not reach
-Google's Maven repository or download the Android SDK (details at the end). Expect the first
-`./gradlew assembleDebug` to need small fixes.
+**Status (2026-11-06): built on a Mac, runs on a Galaxy S25 (Android 17)**: shared voice
+messages, the floating button and HeliBoard's mic key tried by hand; the automatic WhatsApp
+transcripts and the chat strip are built but not yet seen with a real incoming voice message.
 
 Everything runs on the phone and nothing is sent anywhere; the only network access is the model
-download.
+download, and the **offline build** has no internet permission at all (below).
 
 1. **Dictating into any text field, two ways to start** (the app asks which: *Start recording
    with* floating button, my keyboard's mic key, or both). An app can't add a key to someone
@@ -203,11 +199,23 @@ export ANDROID_HOME=~/Library/Android/sdk          # Linux: ~/Android/Sdk
 export ANDROID_NDK_HOME=$ANDROID_HOME/ndk/<version>
 
 cd android
-./gradlew assembleDebug -Pdictate.abis=arm64-v8a   # a phone only; leave -P… out for the emulator too
+./gradlew assembleOnlineDebug -Pdictate.abis=arm64-v8a    # a phone only; leave -P… out for the emulator too
+./gradlew assembleOfflineDebug -Pdictate.abis=arm64-v8a   # the build without internet
 ```
 
-The APK is **`android/app/build/outputs/apk/debug/app-debug.apk`**, signed with the SDK's debug
-key. Gradle's `buildRust` task runs `cargo ndk … build --release -p dictate-android` first (a few
+Two builds of the same app (product flavors, the same package, so one replaces the other):
+
+- **online** (`android/app/build/outputs/apk/online/debug/app-online-debug.apk`): downloads the
+  speech model itself (the only network access).
+- **offline** (`…/apk/offline/debug/app-offline-debug.apk`, version name `…-offline`): its manifest
+  removes `INTERNET` and `ACCESS_NETWORK_STATE` (`app/src/offline/AndroidManifest.xml`), so Android
+  guarantees it sends nothing; check with `aapt2 dump permissions <apk>`. The model comes from a
+  folder on the phone: copy `parakeet-ultra-int8` (the three files; on a desktop `dictate-core model
+  download parakeet-ultra-int8` puts them into the models folder) onto the phone, e.g. into
+  Download, then "Import model folder" in the app (`ModelImport`). Or straight into place:
+  `adb push parakeet-ultra-int8 /sdcard/Android/data/app.dictate/files/models/`.
+
+Both are signed with the SDK's debug key. Gradle's `buildRust` task runs `cargo ndk … build --release -p dictate-android` first (a few
 minutes the first time) and packs `libdictate_android.so` next to the AAR's `libonnxruntime.so`.
 The Rust code is always built optimised: a debug build of the model's code is far too slow.
 
@@ -217,7 +225,7 @@ the PATH Studio sees (start Studio from a terminal, or add `~/.cargo/bin` to its
 ## Install and try it
 
 ```sh
-adb install -r android/app/build/outputs/apk/debug/app-debug.apk
+adb install -r android/app/build/outputs/apk/online/debug/app-online-debug.apk   # or offline/…
 ```
 
 (USB debugging on: Settings → About phone → tap "Build number" 7 times → Developer options → USB
@@ -253,8 +261,8 @@ cargo test --release -p dictate-android                     # the JNI crate on t
 cargo test --release -p dictate-android -- --ignored        # + a clip end to end (int8 model and ONNX Runtime:
                                                             #   dictate-core model download parakeet-ultra-int8 / onnxruntime)
 cd android
-./gradlew testDebugUnitTest lintDebug                       # unit tests and lint (no Rust, no NDK needed)
-./gradlew recordRoborazziDebug                              # the screens as PNGs on the JVM → app/build/outputs/roborazzi/
+./gradlew testOnlineDebugUnitTest lintOnlineDebug lintOfflineDebug   # unit tests and lint (no Rust, no NDK needed)
+./gradlew recordRoborazziOnlineDebug                       # the screens as PNGs on the JVM → app/build/outputs/roborazzi/
 ```
 
 The desktop builds don't need any of this: `android/rust` is a workspace member but not a
@@ -281,10 +289,9 @@ without the NDK.
 
 ## Not yet / next
 
-- [ ] First `./gradlew assembleDebug`, `testDebugUnitTest`, `lintDebug`, `recordRoborazziDebug` on a
-      machine with the SDK, and fixes from it.
-- [ ] First run on a phone: model load time and memory with int8 on a phone CPU, transcription
-      speed, the keyboard in a few apps (WhatsApp, Gmail, a browser), a WhatsApp voice note.
+- [x] First Gradle build, tests, lint, screenshots (macOS); first run on a phone (Galaxy S25:
+      model load 1.3 s, 7.3 s of speech in 0.27 s on the CPU).
+- [ ] An incoming WhatsApp voice message through the automatic transcript and the chat strip.
 - [ ] A release build: signing, R8, a smaller APK (the AAR's Java part is unused).
 - [ ] On a phone: the floating button in a few apps (WhatsApp, Gmail, Chrome, Signal); HeliBoard's
       mic key; whether Samsung Keyboard's voice input setting lists Dictate (Galaxy phone).

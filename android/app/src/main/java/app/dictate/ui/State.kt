@@ -13,6 +13,9 @@ sealed interface ModelState {
     data class Failed(val reason: String) : ModelState
 
     data object Ready : ModelState
+
+    /** The offline build copies it from a folder on the phone. */
+    data object Importing : ModelState
 }
 
 /** Incoming WhatsApp voice messages to text: switched on, and what it needs. */
@@ -41,6 +44,8 @@ data class MainState(
     /** The last transcription: seconds of audio and of work, for measuring on the phone. */
     val timing: Pair<Float, Float>? = null,
     val voiceNotes: VoiceNotesState = VoiceNotesState(),
+    /** The build without internet: the model is imported, not downloaded. */
+    val offline: Boolean = false,
 )
 
 /** One shared voice message on its way to text. */

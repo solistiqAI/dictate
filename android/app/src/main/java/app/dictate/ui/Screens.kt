@@ -87,6 +87,7 @@ class MainActions(
     val allowNotifications: () -> Unit = {},
     val openNotificationAccess: () -> Unit = {},
     val openAllFiles: () -> Unit = {},
+    val importModel: () -> Unit = {},
 )
 
 /** The app screen: setup, a field to try it, recent transcripts, the dictionary. */
@@ -103,7 +104,7 @@ fun MainScreen(state: MainState, actions: MainActions = MainActions()) {
             item { Header() }
             item { Section(stringResource(R.string.setup_title)) }
             item { MicStep(state.micGranted, actions) }
-            item { ModelStep(state.model, actions) }
+            item { ModelStep(state.model, state.offline, actions) }
             item { Section(stringResource(R.string.start_title)) }
             item { StartChoice(state.startWith, actions) }
             if (state.startWith.button) item { ButtonStep(state.buttonOn, actions) }
@@ -215,56 +216,77 @@ private fun MicStep(granted: Boolean, actions: MainActions) {
 }
 
 @Composable
-private fun ModelStep(model: ModelState, actions: MainActions) {
+private fun ModelStep(model: ModelState, offline: Boolean, actions: MainActions) {
     val title = stringResource(R.string.setup_model)
     when (model) {
         ModelState.Ready -> Step(title, true, stringResource(R.string.setup_model_ok))
-        is ModelState.Missing -> Step(
-            title,
-            false,
-            model.bytes?.let { stringResource(R.string.setup_model_missing, formatSize(it)) }
-                ?: stringResource(R.string.setup_model_missing_unknown),
-        ) {
-            if (model.metered) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        Icons.Default.Warning,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.size(18.dp),
-                    )
-                    Spacer(Modifier.width(6.dp))
-                    Text(
-                        stringResource(R.string.setup_model_metered),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.error,
-                    )
-                }
-            }
-            Button(onClick = actions.download) { Text(stringResource(R.string.setup_model_download)) }
+        ModelState.Importing -> Step(title, false, stringResource(R.string.setup_model_importing)) {
+            LinearProgressIndicator(Modifier.fillMaxWidth())
         }
-        is ModelState.Downloading -> Step(
-            title,
-            false,
-            stringResource(
-                R.string.setup_model_downloading,
-                formatSize(model.done),
-                if (model.total > 0) formatSize(model.total) else "…",
-            ),
-        ) {
-            if (model.total > 0) {
-                LinearProgressIndicator(
-                    progress = { (model.done.toFloat() / model.total).coerceIn(0f, 1f) },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            } else {
-                LinearProgressIndicator(Modifier.fillMaxWidth())
+        is ModelState.Missing -> if (offline) {
+            Step(title, false, stringResource(R.string.setup_model_offline)) {
+                Button(onClick = actions.importModel) { Text(stringResource(R.string.setup_model_import)) }
             }
-            OutlinedButton(onClick = actions.cancelDownload) { Text(stringResource(R.string.setup_model_cancel)) }
+        } else {
+            DownloadStep(title, model, actions)
         }
+        is ModelState.Downloading -> DownloadingStep(title, model, actions)
         is ModelState.Failed -> Step(title, false, stringResource(R.string.setup_model_failed, model.reason)) {
-            Button(onClick = actions.download) { Text(stringResource(R.string.setup_model_retry)) }
+            Button(onClick = if (offline) actions.importModel else actions.download) {
+                Text(stringResource(R.string.setup_model_retry))
+            }
         }
+    }
+}
+
+@Composable
+private fun DownloadStep(title: String, model: ModelState.Missing, actions: MainActions) {
+    Step(
+        title,
+        false,
+        model.bytes?.let { stringResource(R.string.setup_model_missing, formatSize(it)) }
+            ?: stringResource(R.string.setup_model_missing_unknown),
+    ) {
+        if (model.metered) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    Icons.Default.Warning,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.size(18.dp),
+                )
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    stringResource(R.string.setup_model_metered),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+        }
+        Button(onClick = actions.download) { Text(stringResource(R.string.setup_model_download)) }
+    }
+}
+
+@Composable
+private fun DownloadingStep(title: String, model: ModelState.Downloading, actions: MainActions) {
+    Step(
+        title,
+        false,
+        stringResource(
+            R.string.setup_model_downloading,
+            formatSize(model.done),
+            if (model.total > 0) formatSize(model.total) else "…",
+        ),
+    ) {
+        if (model.total > 0) {
+            LinearProgressIndicator(
+                progress = { (model.done.toFloat() / model.total).coerceIn(0f, 1f) },
+                modifier = Modifier.fillMaxWidth(),
+            )
+        } else {
+            LinearProgressIndicator(Modifier.fillMaxWidth())
+        }
+        OutlinedButton(onClick = actions.cancelDownload) { Text(stringResource(R.string.setup_model_cancel)) }
     }
 }
 

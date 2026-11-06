@@ -117,4 +117,8 @@
     <string name="voice_notes_someone">Voice message</string>
     <string name="strip_title">Voice messages as text (%1$d)</string>
     <string name="strip_close">Hide</string>
+    <string name="setup_model_offline">Offline build: no internet, so the model doesn\'t download. Copy the folder parakeet-ultra-int8 (670 MB, three files) onto the phone, e.g. over USB into Download, then import it.</string>
+    <string name="setup_model_import">Import model folder</string>
+    <string name="setup_model_importing">Copying the model…</string>
+    <string name="setup_model_import_missing">Not in that folder: %1$s</string>
 </resources>

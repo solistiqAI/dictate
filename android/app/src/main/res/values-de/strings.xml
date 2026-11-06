@@ -111,4 +111,8 @@
     <string name="voice_notes_someone">Sprachnachricht</string>
     <string name="strip_title">Sprachnachrichten als Text (%1$d)</string>
     <string name="strip_close">Ausblenden</string>
+    <string name="setup_model_offline">Offline-Version: ohne Internet, das Modell lädt sich nicht selbst. Den Ordner parakeet-ultra-int8 (670 MB, drei Dateien) aufs Handy kopieren, z. B. per USB nach Download, dann importieren.</string>
+    <string name="setup_model_import">Modellordner importieren</string>
+    <string name="setup_model_importing">Modell wird kopiert…</string>
+    <string name="setup_model_import_missing">Fehlt in dem Ordner: %1$s</string>
 </resources>

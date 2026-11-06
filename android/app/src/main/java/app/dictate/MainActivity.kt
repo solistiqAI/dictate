@@ -39,6 +39,26 @@ class MainActivity : ComponentActivity() {
 
     private val askMic = registerForActivityResult(ActivityResultContracts.RequestPermission()) { refresh() }
 
+    /** The offline build: the folder with the model's files, picked by the user. */
+    private var importing = false
+    private val pickModel = registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) { tree ->
+        if (tree == null) return@registerForActivityResult
+        importing = true
+        refresh()
+        Thread {
+            val result = runCatching { ModelImport.from(this, tree) }
+            main.post {
+                importing = false
+                result.onSuccess { missing ->
+                    if (missing.isNotEmpty()) {
+                        Toast.makeText(this, getString(R.string.setup_model_import_missing, missing.joinToString()), Toast.LENGTH_LONG).show()
+                    }
+                }.onFailure { Toast.makeText(this, Engine.describe(it), Toast.LENGTH_LONG).show() }
+                refresh()
+            }
+        }.start()
+    }
+
     /** Android 13+: the transcript notifications need this. */
     private val askNotifications = registerForActivityResult(ActivityResultContracts.RequestPermission()) {
         if (!Setup.notificationsAllowed(this)) Setup.openAppInfo(this)
@@ -97,10 +117,11 @@ class MainActivity : ComponentActivity() {
             },
             openNotificationAccess = { Setup.openNotificationAccess(this) },
             openAllFiles = { Setup.openAllFiles(this) },
+            importModel = { pickModel.launch(null) },
         )
         setContent { DictateTheme { MainScreen(state, actions) } }
         // The download's size from the server, for the button (HEAD requests, off the main thread).
-        Thread {
+        if (!BuildConfig.OFFLINE) Thread {
             val bytes = runCatching { download.size() }.getOrNull()
             main.post {
                 modelBytes = bytes
@@ -126,7 +147,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun refresh() {
-        val model = when (val status = download.status()) {
+        val model = if (importing) ModelState.Importing else when (val status = download.status()) {
             ModelDownload.Status.Complete -> ModelState.Ready
             is ModelDownload.Status.Running -> ModelState.Downloading(status.done, status.total)
             is ModelDownload.Status.Failed -> {
@@ -134,7 +155,7 @@ class MainActivity : ComponentActivity() {
                 ModelState.Failed(status.reason)
             }
             ModelDownload.Status.Idle -> failure?.let { ModelState.Failed(it) }
-                ?: ModelState.Missing(modelBytes, download.metered())
+                ?: ModelState.Missing(modelBytes, !BuildConfig.OFFLINE && download.metered())
         }
         state = MainState(
             micGranted = Setup.micGranted(this),
@@ -152,6 +173,7 @@ class MainActivity : ComponentActivity() {
                 listener = Setup.notificationAccess(this),
                 files = Setup.allFiles(),
             ),
+            offline = BuildConfig.OFFLINE,
         )
     }
 

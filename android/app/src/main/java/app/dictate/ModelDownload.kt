@@ -128,7 +128,7 @@ class ModelDownload(context: Context) {
     }
 
     companion object {
-        private const val PART = ".part"
+        const val PART = ".part"
         private const val IDS = "ids"
     }
 }

@@ -23,6 +23,23 @@ android {
         ndk { abiFilters += abis }
     }
 
+    // Two builds of the same app: "online" downloads the speech model itself; "offline" has no
+    // internet permission at all (Android then guarantees it sends nothing) and imports the model
+    // from a folder copied onto the phone.
+    flavorDimensions += "network"
+    productFlavors {
+        create("online") {
+            dimension = "network"
+            isDefault = true
+            buildConfigField("boolean", "OFFLINE", "false")
+        }
+        create("offline") {
+            dimension = "network"
+            versionNameSuffix = "-offline"
+            buildConfigField("boolean", "OFFLINE", "true")
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
@@ -40,6 +57,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     // libdictate_android.so from `buildRust` below; libonnxruntime.so comes with the AAR.

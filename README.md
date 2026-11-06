@@ -83,9 +83,10 @@ Reports from a first run are very welcome.
 Parakeet Ultra int8 on the CPU): a floating mic button above any keyboard (Gboard too), a voice
 input method that your keyboard's mic key opens (HeliBoard), and a share target that turns voice
 messages from WhatsApp and other messengers into text. Nothing leaves the
-phone but the model download. It has not been built into an APK or run on a phone yet. Build a
-debug APK with the Android SDK, the NDK and `cargo-ndk` (`cd android && ./gradlew assembleDebug`),
-install it with `adb install`: [`docs/android.md`](docs/android.md).
+phone but the model download, and an offline build has no internet permission at all. Runs on a
+Galaxy S25; build a debug APK with the Android SDK, the NDK and `cargo-ndk` (`cd android &&
+./gradlew assembleOnlineDebug` or `assembleOfflineDebug`), install it with `adb install`:
+[`docs/android.md`](docs/android.md).
 
 ## Using it
 
