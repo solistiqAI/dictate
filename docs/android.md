@@ -40,7 +40,8 @@ fields), the dictionary, and the speed of the last transcription.
 |---|---|---|
 | **Gboard** | yes | no: Gboard's mic always uses Google's voice typing. Reach the voice keyboard through Gboard's switch-keyboard key (globe / long-press space) or the navigation bar's keyboard icon: it records at once and switches back after typing. |
 | **HeliBoard** (made for it) | yes | yes (see below) |
-| FlorisBoard, AOSP keyboard and other AOSP-based ones | yes | should: they use the same hand-off as HeliBoard (not tried) |
+| FlorisBoard | yes | yes: its mic key (`FlorisImeService.switchToVoiceInputMethod`) switches to the **first enabled** input method with a `voice` subtype, so turn off other voice input methods (Google voice typing) in the keyboard list |
+| AOSP keyboard and other AOSP-based ones | yes | should: they use the same hand-off as HeliBoard (not tried) |
 | Samsung Keyboard | yes | not known yet: whether its voice input setting lists Dictate needs checking on a Galaxy phone |
 | Dictate's own keyboard | not shown (it has the big button) | |
 
