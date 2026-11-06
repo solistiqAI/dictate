@@ -83,6 +83,10 @@ class MainActions(
     val clear: () -> Unit = {},
     val addWord: (String) -> Unit = {},
     val removeWord: (String) -> Unit = {},
+    val voiceNotes: (Boolean) -> Unit = {},
+    val allowNotifications: () -> Unit = {},
+    val openNotificationAccess: () -> Unit = {},
+    val openAllFiles: () -> Unit = {},
 )
 
 /** The app screen: setup, a field to try it, recent transcripts, the dictionary. */
@@ -106,9 +110,7 @@ fun MainScreen(state: MainState, actions: MainActions = MainActions()) {
             if (state.startWith.keyboard) item { VoiceStep(state.keyboardEnabled, state.micKeyOpens, actions) }
             item { Section(stringResource(R.string.try_title)) }
             item { TryField() }
-            item {
-                Hint(stringResource(R.string.messages_title), stringResource(R.string.messages_hint))
-            }
+            item { VoiceNotesStep(state.voiceNotes, actions) }
             item {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Section(stringResource(R.string.recent_title), Modifier.weight(1f))
@@ -337,6 +339,34 @@ private fun TryField() {
         minLines = 3,
         modifier = Modifier.fillMaxWidth(),
     )
+}
+
+/** Incoming WhatsApp voice messages as notifications with the text; sharing works without it. */
+@Composable
+private fun VoiceNotesStep(state: VoiceNotesState, actions: MainActions) {
+    val title = stringResource(R.string.messages_title)
+    when {
+        !state.on -> Step(title, false, stringResource(R.string.voice_notes_off)) {
+            Button(onClick = { actions.voiceNotes(true) }) { Text(stringResource(R.string.voice_notes_turn_on)) }
+            Muted(stringResource(R.string.messages_hint))
+        }
+        !state.ready -> Step(title, false, stringResource(R.string.voice_notes_needs)) {
+            if (!state.notifications) {
+                Button(onClick = actions.allowNotifications) { Text(stringResource(R.string.voice_notes_allow_notifications)) }
+            }
+            if (!state.listener) {
+                Button(onClick = actions.openNotificationAccess) { Text(stringResource(R.string.voice_notes_notification_access)) }
+            }
+            if (!state.files) {
+                Button(onClick = actions.openAllFiles) { Text(stringResource(R.string.voice_notes_all_files)) }
+            }
+            Muted(stringResource(R.string.voice_notes_restricted))
+            TextButton(onClick = { actions.voiceNotes(false) }) { Text(stringResource(R.string.voice_notes_turn_off)) }
+        }
+        else -> Step(title, true, stringResource(R.string.voice_notes_ok)) {
+            TextButton(onClick = { actions.voiceNotes(false) }) { Text(stringResource(R.string.voice_notes_turn_off)) }
+        }
+    }
 }
 
 @Composable

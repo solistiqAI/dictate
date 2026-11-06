@@ -34,6 +34,23 @@ for the button; the voice input method for the mic key, with which input method 
 right now), a field to try it, the recent transcripts (kept on the phone only; not from password
 fields), the dictionary, and the speed of the last transcription.
 
+## Incoming WhatsApp voice messages, without sharing
+
+Switched on in the app ("Voice messages", off by default), every WhatsApp voice message that comes
+in shows up as a notification of Dictate's own: the sender as the title, the text below; a tap
+opens the chat (WhatsApp's own tap action), "Copy" copies the text. It also lands in the recent
+transcripts. WhatsApp's own transcripts don't offer German on Android, hence this.
+
+How (`VoiceNoteListener`, the pure part in `VoiceNotes` with tests): a `NotificationListenerService`
+looks only at WhatsApp's notifications (`com.whatsapp`, `com.whatsapp.w4b`). When a chat's newest
+message is a voice message (WhatsApp writes "🎤 Sprachnachricht (0:12)", the microphone and the
+duration in any language), it waits up to a minute for the new `.opus` file in WhatsApp's voice
+notes folder (`Android/media/com.whatsapp/WhatsApp/Media/WhatsApp Voice Notes/<week>/`) to stop
+growing, decodes and transcribes it. Needs notification access and access to all files (the folder
+has a `.nomedia`, so the media store doesn't list it); both are "restricted settings" for an app
+not from a store (App info → ⋮ → Allow restricted settings). WhatsApp must download voice messages
+by itself (its default). Nothing of the notifications is kept or logged but the transcript.
+
 ## Which keyboards, which way
 
 | Keyboard | Floating button | Its mic key opens Dictate |

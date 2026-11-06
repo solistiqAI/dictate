@@ -103,4 +103,16 @@
     <string name="mic_channel">Recording</string>
     <string name="mic_notification">Dictate is listening</string>
     <string name="mic_stop">Stop</string>
+    <string name="voice_notes_off">Turn on, and every WhatsApp voice message that comes in shows up as text in a notification, without sharing it. Transcribed on this phone.</string>
+    <string name="voice_notes_turn_on">Turn on</string>
+    <string name="voice_notes_turn_off">Turn off</string>
+    <string name="voice_notes_needs">Needs three things: notifications, notification access (Dictate only looks at WhatsApp\'s) and access to all files (WhatsApp\'s voice messages folder).</string>
+    <string name="voice_notes_allow_notifications">Allow notifications</string>
+    <string name="voice_notes_notification_access">Notification access</string>
+    <string name="voice_notes_all_files">Access to all files</string>
+    <string name="voice_notes_restricted">Greyed out? App info, ⋮, "Allow restricted settings", then again.</string>
+    <string name="voice_notes_ok">On: incoming WhatsApp voice messages show up as text in a notification. Sharing still works too.</string>
+    <string name="voice_notes_channel">Voice messages as text</string>
+    <string name="voice_notes_listener">Dictate: WhatsApp voice messages</string>
+    <string name="voice_notes_someone">Voice message</string>
 </resources>

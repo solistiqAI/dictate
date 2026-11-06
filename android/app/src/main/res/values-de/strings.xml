@@ -97,4 +97,16 @@
     <string name="mic_channel">Aufnahme</string>
     <string name="mic_notification">Dictate hört zu</string>
     <string name="mic_stop">Stopp</string>
+    <string name="voice_notes_off">Einschalten, und jede eingehende WhatsApp-Sprachnachricht erscheint als Text in einer Benachrichtigung, ohne Teilen. Verschriftet auf diesem Handy.</string>
+    <string name="voice_notes_turn_on">Einschalten</string>
+    <string name="voice_notes_turn_off">Ausschalten</string>
+    <string name="voice_notes_needs">Braucht drei Dinge: Benachrichtigungen, Zugriff auf Benachrichtigungen (Dictate schaut nur auf die von WhatsApp) und Zugriff auf alle Dateien (WhatsApps Ordner mit den Sprachnachrichten).</string>
+    <string name="voice_notes_allow_notifications">Benachrichtigungen erlauben</string>
+    <string name="voice_notes_notification_access">Zugriff auf Benachrichtigungen</string>
+    <string name="voice_notes_all_files">Zugriff auf alle Dateien</string>
+    <string name="voice_notes_restricted">Ausgegraut? App-Info, ⋮, „Eingeschränkte Einstellungen zulassen“, dann noch mal.</string>
+    <string name="voice_notes_ok">An: eingehende WhatsApp-Sprachnachrichten erscheinen als Text in einer Benachrichtigung. Teilen geht weiterhin.</string>
+    <string name="voice_notes_channel">Sprachnachrichten als Text</string>
+    <string name="voice_notes_listener">Dictate: WhatsApp-Sprachnachrichten</string>
+    <string name="voice_notes_someone">Sprachnachricht</string>
 </resources>

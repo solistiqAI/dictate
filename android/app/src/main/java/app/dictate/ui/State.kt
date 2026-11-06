@@ -15,6 +15,16 @@ sealed interface ModelState {
     data object Ready : ModelState
 }
 
+/** Incoming WhatsApp voice messages to text: switched on, and what it needs. */
+data class VoiceNotesState(
+    val on: Boolean = false,
+    val notifications: Boolean = false,
+    val listener: Boolean = false,
+    val files: Boolean = false,
+) {
+    val ready: Boolean get() = notifications && listener && files
+}
+
 /** Everything the app screen shows; the activity fills it, the screenshot tests invent it. */
 data class MainState(
     val micGranted: Boolean,
@@ -30,6 +40,7 @@ data class MainState(
     val words: List<String>,
     /** The last transcription: seconds of audio and of work, for measuring on the phone. */
     val timing: Pair<Float, Float>? = null,
+    val voiceNotes: VoiceNotesState = VoiceNotesState(),
 )
 
 /** One shared voice message on its way to text. */

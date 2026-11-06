@@ -26,7 +26,13 @@ class Settings(context: Context) {
         get() = prefs.getInt(BUTTON_ABOVE, -1)
         set(value) = prefs.edit().putInt(BUTTON_ABOVE, value).apply()
 
+    /** Incoming WhatsApp voice messages to text by themselves ([VoiceNoteListener]). */
+    var voiceNotes: Boolean
+        get() = prefs.getBoolean(VOICE_NOTES, false)
+        set(value) = prefs.edit().putBoolean(VOICE_NOTES, value).apply()
+
     companion object {
+        private const val VOICE_NOTES = "voice_notes"
         private const val START_WITH = "start_with"
         private const val BUTTON_X = "button_x"
         private const val BUTTON_ABOVE = "button_above"

@@ -18,6 +18,7 @@ import app.dictate.ui.MainActions
 import app.dictate.ui.MainScreen
 import app.dictate.ui.MainState
 import app.dictate.ui.ModelState
+import app.dictate.ui.VoiceNotesState
 
 /** The app screen: setup (microphone, model, keyboard), try it, recent transcripts, dictionary. */
 class MainActivity : ComponentActivity() {
@@ -37,6 +38,12 @@ class MainActivity : ComponentActivity() {
     }
 
     private val askMic = registerForActivityResult(ActivityResultContracts.RequestPermission()) { refresh() }
+
+    /** Android 13+: the transcript notifications need this. */
+    private val askNotifications = registerForActivityResult(ActivityResultContracts.RequestPermission()) {
+        if (!Setup.notificationsAllowed(this)) Setup.openAppInfo(this)
+        refresh()
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -77,6 +84,19 @@ class MainActivity : ComponentActivity() {
                 if (clean.isNotEmpty() && clean !in state.words) saveWords(state.words + clean)
             },
             removeWord = { word -> saveWords(state.words - word) },
+            voiceNotes = { on ->
+                Settings(this).voiceNotes = on
+                refresh()
+            },
+            allowNotifications = {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    askNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
+                } else {
+                    Setup.openAppInfo(this)
+                }
+            },
+            openNotificationAccess = { Setup.openNotificationAccess(this) },
+            openAllFiles = { Setup.openAllFiles(this) },
         )
         setContent { DictateTheme { MainScreen(state, actions) } }
         // The download's size from the server, for the button (HEAD requests, off the main thread).
@@ -126,6 +146,12 @@ class MainActivity : ComponentActivity() {
             transcripts = AppFiles(this).transcripts.all(),
             words = words(),
             timing = Engine.lastTiming?.let { it.audioSeconds to it.millis / 1000f },
+            voiceNotes = VoiceNotesState(
+                on = Settings(this).voiceNotes,
+                notifications = Setup.notificationsAllowed(this),
+                listener = Setup.notificationAccess(this),
+                files = Setup.allFiles(),
+            ),
         )
     }
 

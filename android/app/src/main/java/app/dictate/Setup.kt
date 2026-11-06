@@ -3,11 +3,15 @@ package app.dictate
 import android.Manifest
 import android.accessibilityservice.AccessibilityServiceInfo
 import android.content.ClipData
+import android.app.NotificationManager
 import android.content.ClipboardManager
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
+import android.os.Environment
 import android.provider.Settings
 import android.view.accessibility.AccessibilityManager
 import android.view.inputmethod.InputMethodManager
@@ -66,6 +70,38 @@ object Setup {
     fun openKeyboardSettings(context: Context) {
         context.startActivity(Intent(Settings.ACTION_INPUT_METHOD_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     }
+
+    /** Access to all files: WhatsApp's voice notes folder (Android 11 and later). */
+    fun allFiles(): Boolean = Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && Environment.isExternalStorageManager()
+
+    fun openAllFiles(context: Context) {
+        val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION, Uri.fromParts("package", context.packageName, null))
+        } else {
+            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null))
+        }
+        context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+    }
+
+    private fun listener(context: Context) = ComponentName(context, VoiceNoteListener::class.java)
+
+    /** Dictate may read notifications (it only looks at WhatsApp's). */
+    fun notificationAccess(context: Context): Boolean =
+        context.getSystemService(NotificationManager::class.java)?.isNotificationListenerAccessGranted(listener(context)) == true
+
+    fun openNotificationAccess(context: Context) {
+        val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            Intent(Settings.ACTION_NOTIFICATION_LISTENER_DETAIL_SETTINGS)
+                .putExtra(Settings.EXTRA_NOTIFICATION_LISTENER_COMPONENT_NAME, listener(context).flattenToString())
+        } else {
+            Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
+        }
+        context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+    }
+
+    /** Dictate may show notifications (the transcripts). */
+    fun notificationsAllowed(context: Context): Boolean =
+        context.getSystemService(NotificationManager::class.java)?.areNotificationsEnabled() == true
 
     fun copy(context: Context, text: String) {
         context.getSystemService(ClipboardManager::class.java)
