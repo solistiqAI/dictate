@@ -99,6 +99,7 @@
     <string name="button_service_description">Shows a microphone button above the keyboard when a text field has focus. Tap it, talk, tap again: Dictate transcribes on this phone and puts the text into the field. To do that it needs to see which field has focus and where the keyboard is; nothing else is read, kept or sent.</string>
     <string name="button_copied">Copied: paste it where you want it</string>
     <string name="keyboard_nothing">Nothing heard</string>
+    <string name="mic_silenced">Android muted the microphone, so nothing was heard: try again</string>
     <string name="mic_channel">Recording</string>
     <string name="mic_notification">Dictate is listening</string>
     <string name="mic_stop">Stop</string>

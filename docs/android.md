@@ -82,13 +82,19 @@ was there before. If nothing can be inserted, the text stays on the clipboard wi
 notice.
 
 Recording runs in a foreground service of type `microphone` (notification "Dictate is
-listening", with Stop). Starting it from an accessibility service in the background is allowed
-on Android 14 and 15. The tap comes from the button, a visible `TYPE_ACCESSIBILITY_OVERLAY` window,
-and a visible system window counts as being in the foreground for starting such a service and
-for the microphone (AOSP `ActiveServices`, `WindowState`: `hasNonAppVisibleWindow` →
-`REASON_UID_VISIBLE`). The system also binds accessibility services with
-`BIND_INCLUDE_CAPABILITIES`. If Android still refuses the service on some phone, recording goes on
-without the notification, and the log says so.
+listening", with Stop). Starting it from an accessibility service is allowed: the tap comes from
+the button, a visible `TYPE_ACCESSIBILITY_OVERLAY` window, which counts as being in the foreground
+for starting such a service (AOSP `ActiveServices`: `REASON_UID_VISIBLE`). The visible button is
+**not** enough for the microphone itself: recording only starts once the service runs. Started
+together, Android 17 on a Galaxy S25 handed the recording silence (`audioserver`: "App op 27
+missing, silencing record"), and the model heard nothing. If the service doesn't start within 2 s,
+recording starts anyway; when Android silences it, the app says so instead of "Nothing heard".
+
+While you talk, a dark bubble above the button shows the words so far (the newest three lines),
+as the desktop's overlay does. The recording so far goes through the model again and again, one
+pass at a time, at least 0.6 s apart and twice as long as the last pass took; the text that goes
+into the field is still the pass over the whole recording at the end. The voice keyboard shows
+the words so far in the field itself, as underlined composing text, replaced by the final text.
 
 ### The system's voice input
 
@@ -235,7 +241,10 @@ without the NDK.
 | How HeliBoard finds the voice input method | HeliBoard's source | `getShortcutInputMethodsAndSubtypes()`: a `voice` subtype qualifies |
 | Accessibility service → microphone foreground service on Android 14/15; clipboard read | AOSP frameworks/base (`ActiveServices`, `WindowState`, `AccessibilityServiceConnection`, `ClipboardService`) | allowed while the button is visible; clipboard not readable |
 | Gradle build, Compose screens, lint, Robolectric/Roborazzi screenshots | none yet | not run (no Google Maven, no SDK) |
-| On a phone or an emulator | none yet | not run |
+| Gradle build, unit tests, lint, Roborazzi | macOS (Apple silicon), JDK 21, SDK 35, NDK r28c | pass (lint: 0 errors) |
+| Emulator (Android 15, arm64) | macOS, M5 Pro | the app runs; the model crashes with SIGILL in ONNX Runtime: the emulator claims SVE2/SME2 the VM can't run (emulator only) |
+| A shared Opus voice note | Galaxy S25 (Snapdragon 8 Elite), Android 17 | word for word; model load 1.3 s, 7.3 s of speech in 0.27 s |
+| Floating button | Galaxy S25, Android 17 | first build: recordings silenced (fixed: recording waits for the microphone service) |
 
 ## Not yet / next
 
@@ -248,8 +257,6 @@ without the NDK.
       mic key; whether Samsung Keyboard's voice input setting lists Dictate (Galaxy phone).
 - [ ] NPU (Snapdragon's Hexagon) through ONNX Runtime's QNN execution provider: fixed-shape,
       quantized encoder chunks; see the PR for what it needs. CPU int8 first, measured with the log.
-- [ ] Live text while speaking (the desktop's 0.6 s live pass); text stays empty until you let go
-      for now.
 - [ ] Settings on the phone beyond the dictionary (spoken commands on/off, boost weight), the
       replacements list.
 - [ ] Unloading the model when Android asks for memory (`onTrimMemory`).

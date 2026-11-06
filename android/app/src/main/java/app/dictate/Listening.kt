@@ -63,6 +63,12 @@ class Listening(
     var active = false
         private set
 
+    /** Android gave this recording silence (see [Recorder.silenced]). */
+    val silenced: Boolean get() = recorder.silenced
+
+    /** The recording so far, at [Recorder.RATE]. */
+    fun snapshot(): FloatArray = recorder.snapshot()
+
     private val tick = object : Runnable {
         override fun run() {
             if (!active) return

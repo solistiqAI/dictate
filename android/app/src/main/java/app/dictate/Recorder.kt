@@ -16,6 +16,11 @@ class Recorder {
     @Volatile
     private var running = false
 
+    /** Android hands this recording silence (the app counted as in the background when it started). */
+    @Volatile
+    var silenced = false
+        private set
+
     /** Loudness of the last tenth of a second, 0 to 1. */
     @Volatile
     var level = 0f
@@ -73,12 +78,19 @@ class Recorder {
                 if (n < 0) break
                 synchronized(samples) { Pcm.addInterleaved(buffer, n, 1, samples) }
                 level = Pcm.level(buffer, n)
+                if (!silenced && record.activeRecordingConfiguration?.isClientSilenced == true) {
+                    silenced = true
+                    android.util.Log.w(Engine.TAG, "Android silenced the microphone for this recording")
+                }
             }
         } finally {
             runCatching { record.stop() }
             record.release()
         }
     }
+
+    /** What was recorded so far (for the live text), the recording goes on. */
+    fun snapshot(): FloatArray = synchronized(samples) { samples.toArray() }
 
     /** Stops and returns what was recorded. */
     fun stop(): FloatArray {

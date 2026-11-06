@@ -63,14 +63,24 @@ object Engine {
         }
     }
 
-    /** Mono [samples] at [rate] Hz to text, after the jobs before it. */
-    fun transcribe(context: Context, samples: FloatArray, rate: Int, done: (Result<String>) -> Unit) {
+    /**
+     * Mono [samples] at [rate] Hz to text, after the jobs before it. [live]: a pass over the
+     * recording so far, for the text while speaking (not logged, not the last timing).
+     */
+    fun transcribe(
+        context: Context,
+        samples: FloatArray,
+        rate: Int,
+        live: Boolean = false,
+        done: (Result<String>) -> Unit,
+    ) {
         val files = AppFiles(context)
         worker.execute {
             val result = runCatching {
                 ensureLoaded(files)
                 val started = SystemClock.elapsedRealtime()
                 val text = Native.transcribe(samples, rate)
+                if (live) return@runCatching text
                 val timing = Timing(samples.size.toFloat() / rate, SystemClock.elapsedRealtime() - started)
                 lastTiming = timing
                 // `adb logcat -s Dictate` on the phone: speed of the model on this CPU.

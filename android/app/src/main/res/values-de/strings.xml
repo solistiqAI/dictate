@@ -93,6 +93,7 @@
     <string name="button_service_description">Zeigt eine Mikrofon-Taste über der Tastatur, wenn ein Textfeld aktiv ist. Antippen, sprechen, nochmal antippen: Dictate schreibt auf diesem Handy ab und setzt den Text ins Feld. Dafür muss es sehen, welches Feld aktiv ist und wo die Tastatur liegt; sonst wird nichts gelesen, gespeichert oder gesendet.</string>
     <string name="button_copied">Kopiert: füge es ein, wo du es brauchst</string>
     <string name="keyboard_nothing">Nichts gehört</string>
+    <string name="mic_silenced">Android hat das Mikrofon stummgeschaltet, nichts gehört: versuch es noch mal</string>
     <string name="mic_channel">Aufnahme</string>
     <string name="mic_notification">Dictate hört zu</string>
     <string name="mic_stop">Stopp</string>

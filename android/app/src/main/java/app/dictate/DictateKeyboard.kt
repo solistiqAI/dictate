@@ -22,6 +22,13 @@ class DictateKeyboard : InputMethodService(), KeyboardView.Listener {
     private var view: KeyboardView? = null
     private val gesture = MicGesture()
     private var listening: Listening? = null
+    private var live: LiveText? = null
+
+    /** The character before the cursor when recording started: how the text joins on. */
+    private var before: CharSequence? = null
+
+    /** Live text sits in the field as composing (underlined) text until the final one replaces it. */
+    private var composing = false
     private var busy = false
     private var message: String? = null
 
@@ -111,6 +118,8 @@ class DictateKeyboard : InputMethodService(), KeyboardView.Listener {
 
                 // Hands-free, the end of speech stops it; the button's next press then starts anew.
                 override fun finished(samples: FloatArray) {
+                    live?.stop()
+                    live = null
                     listening = null
                     gesture.reset()
                     transcribe(samples)
@@ -124,8 +133,25 @@ class DictateKeyboard : InputMethodService(), KeyboardView.Listener {
         }
         message = null
         listening = listen
+        before = currentInputConnection?.getTextBeforeCursor(1, 0)
+        live = LiveText(this, listen) { text -> showLive(text) }.also { it.start() }
         refresh()
         return true
+    }
+
+    /** The words so far, in the field as composing text (not in password fields). */
+    private fun showLive(text: String) {
+        if (isPassword(currentInputEditorInfo)) return
+        val connection = currentInputConnection ?: return
+        connection.setComposingText(Typing.join(before, text), 1)
+        composing = true
+    }
+
+    /** Takes the live text out of the field again. */
+    private fun clearLive() {
+        if (!composing) return
+        composing = false
+        currentInputConnection?.commitText("", 1)
     }
 
     /** [keep]: transcribe what was recorded; else drop it (the keyboard went away). */
@@ -134,8 +160,11 @@ class DictateKeyboard : InputMethodService(), KeyboardView.Listener {
         if (keep) {
             listen.finish() // → finished() → transcribe
         } else {
+            live?.stop()
+            live = null
             listening = null
             listen.cancel()
+            clearLive()
             gesture.reset()
             refresh()
         }
@@ -149,6 +178,7 @@ class DictateKeyboard : InputMethodService(), KeyboardView.Listener {
             busy = false
             result.onSuccess { text ->
                 if (text.isEmpty()) {
+                    clearLive()
                     message = getString(R.string.keyboard_nothing)
                 } else {
                     insert(text)
@@ -160,14 +190,20 @@ class DictateKeyboard : InputMethodService(), KeyboardView.Listener {
                     // Done: back to the keyboard the user came from (nothing happens without one).
                     switchToPreviousInputMethod()
                 }
-            }.onFailure { message = Engine.describe(it) }
+            }.onFailure {
+                clearLive()
+                message = Engine.describe(it)
+            }
             refresh()
         }
     }
 
+    /** Replaces the live text (if any) with the final one. */
     private fun insert(text: String) {
         val connection = currentInputConnection ?: return
-        connection.commitText(Typing.join(connection.getTextBeforeCursor(1, 0), text), 1)
+        val joinTo = if (composing) before else connection.getTextBeforeCursor(1, 0)
+        composing = false
+        connection.commitText(Typing.join(joinTo, text), 1)
     }
 
     override fun onBackspace() {

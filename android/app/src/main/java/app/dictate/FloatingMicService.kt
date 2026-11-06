@@ -32,6 +32,11 @@ class FloatingMicService : AccessibilityService() {
     private var button: MicButton? = null
     private var params: WindowManager.LayoutParams? = null
     private var listening: Listening? = null
+    private var live: LiveText? = null
+    private lateinit var bubble: LiveBubble
+
+    /** Tapped, waiting for the microphone service before recording. */
+    private var starting = false
     private var busy = false
     private var target: AccessibilityNodeInfo? = null
     private var anchor = 0
@@ -41,6 +46,7 @@ class FloatingMicService : AccessibilityService() {
         super.onServiceConnected()
         instance = this
         windows = getSystemService(WindowManager::class.java)
+        bubble = LiveBubble(this, windows)
         update()
     }
 
@@ -54,8 +60,11 @@ class FloatingMicService : AccessibilityService() {
 
     override fun onDestroy() {
         instance = null
+        live?.stop()
+        live = null
         listening?.cancel()
         listening = null
+        starting = false
         MicService.stop()
         hide()
         super.onDestroy()
@@ -69,7 +78,7 @@ class FloatingMicService : AccessibilityService() {
     /** Show the button when a text field has focus (and while it records or transcribes). */
     private fun update() {
         val wanted = Settings(this).startWith.button && ModelDownload(this).installed()
-        val working = listening != null || busy
+        val working = listening != null || busy || starting
         // Dictate's own keyboard has the big button already.
         val field = editableFocus()?.takeIf { !Setup.keyboardChosen(this) }
         if (!wanted || (field == null && !working)) {
@@ -138,6 +147,7 @@ class FloatingMicService : AccessibilityService() {
     }
 
     private fun hide() {
+        bubble.hide()
         button?.let { runCatching { windows.removeView(it) } }
         button = null
         params = null
@@ -146,7 +156,7 @@ class FloatingMicService : AccessibilityService() {
     private fun refresh() {
         button?.show(
             when {
-                listening != null -> MicButton.Mode.RECORDING
+                listening != null || starting -> MicButton.Mode.RECORDING
                 busy -> MicButton.Mode.BUSY
                 else -> MicButton.Mode.IDLE
             },
@@ -198,7 +208,7 @@ class FloatingMicService : AccessibilityService() {
     }
 
     private fun toggle() {
-        if (busy) return
+        if (busy || starting) return
         listening?.let {
             it.finish()
             return
@@ -217,33 +227,52 @@ class FloatingMicService : AccessibilityService() {
                 }
 
                 override fun finished(samples: FloatArray) {
+                    val silenced = listening?.silenced == true
+                    live?.stop()
+                    live = null
                     listening = null
-                    transcribe(samples)
+                    transcribe(samples, silenced)
                 }
             },
         )
-        MicService.start(this)
-        if (!listen.start()) {
-            MicService.stop()
-            Toast.makeText(this, R.string.keyboard_mic_failed, Toast.LENGTH_SHORT).show()
-            return
-        }
-        listening = listen
+        // The button turns red at once; recording starts when the service runs (else silence).
+        starting = true
         refresh()
+        MicService.start(this) {
+            if (!starting) return@start
+            starting = false
+            if (!listen.start()) {
+                MicService.stop()
+                Toast.makeText(this, R.string.keyboard_mic_failed, Toast.LENGTH_SHORT).show()
+                refresh()
+                update()
+                return@start
+            }
+            listening = listen
+            live = LiveText(this, listen) { text -> showLive(text) }.also { it.start() }
+            refresh()
+        }
     }
 
-    private fun transcribe(samples: FloatArray) {
+    private fun showLive(text: String) {
+        val layout = params ?: return
+        bubble.show(text, layout.y, screen())
+    }
+
+    private fun transcribe(samples: FloatArray, silenced: Boolean) {
         busy = true
         refresh()
         Engine.transcribe(this, samples, Recorder.RATE) { result ->
             busy = false
+            bubble.hide()
             MicService.stop()
             result.onSuccess { text ->
                 if (text.isNotBlank()) {
                     insert(text)
                     AppFiles(this).transcripts.add(Transcript(System.currentTimeMillis(), Transcript.Source.KEYBOARD, text))
                 } else {
-                    Toast.makeText(this, R.string.keyboard_nothing, Toast.LENGTH_SHORT).show()
+                    val why = if (silenced) R.string.mic_silenced else R.string.keyboard_nothing
+                    Toast.makeText(this, why, Toast.LENGTH_LONG).show()
                 }
             }.onFailure { Toast.makeText(this, Engine.describe(it), Toast.LENGTH_LONG).show() }
             target = null
