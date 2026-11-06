@@ -51,6 +51,15 @@ has a `.nomedia`, so the media store doesn't list it); both are "restricted sett
 not from a store (App info → ⋮ → Allow restricted settings). WhatsApp must download voice messages
 by itself (its default). Nothing of the notifications is kept or logged but the transcript.
 
+Over an open WhatsApp chat, a dark strip below WhatsApp's header shows that chat's transcribed
+voice messages of the last three days (`ChatStrip`, from `VoiceNoteLog`): one line with the newest;
+a tap shows them all, each in full (in a group with the sender), a long press on one copies it, ✕
+hides the strip until the next voice message of that chat. It needs the floating button's
+accessibility service, which then also reads the open chat's name from WhatsApp's header (view id
+`conversation_contact_name`, hence `flagReportViewIds`; matched against the notification's chat
+name without case, spaces and direction marks). A WhatsApp update that renames that view hides
+the strip, nothing else.
+
 ## Which keyboards, which way
 
 | Keyboard | Floating button | Its mic key opens Dictate |

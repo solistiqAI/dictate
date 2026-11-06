@@ -26,6 +26,9 @@ class AppFiles(context: Context) {
 
     val transcripts: TranscriptLog get() = TranscriptLog(File(data, "transcripts.txt"))
 
+    /** Transcribed WhatsApp voice messages, by chat (for the strip over an open chat). */
+    val voiceNotes: VoiceNoteLog get() = VoiceNoteLog(File(data, "voice_notes.txt"))
+
     companion object {
         const val MODELS = "models"
     }

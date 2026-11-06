@@ -96,7 +96,7 @@
 
     <!-- Floating button and voice input -->
     <string name="button_service_name">Dictate button</string>
-    <string name="button_service_description">Shows a microphone button above the keyboard when a text field has focus. Tap it, talk, tap again: Dictate transcribes on this phone and puts the text into the field. To do that it needs to see which field has focus and where the keyboard is; nothing else is read, kept or sent.</string>
+    <string name="button_service_description">Shows a microphone button above the keyboard when a text field has focus. Tap it, talk, tap again: Dictate transcribes on this phone and puts the text into the field. To do that it needs to see which field has focus and where the keyboard is. With WhatsApp voice messages on, it also reads the name of an open WhatsApp chat to show that chat\'s voice messages as text above it. Nothing else is read, kept or sent.</string>
     <string name="button_copied">Copied: paste it where you want it</string>
     <string name="keyboard_nothing">Nothing heard</string>
     <string name="mic_silenced">Android muted the microphone, so nothing was heard: try again</string>
@@ -115,4 +115,6 @@
     <string name="voice_notes_channel">Voice messages as text</string>
     <string name="voice_notes_listener">Dictate: WhatsApp voice messages</string>
     <string name="voice_notes_someone">Voice message</string>
+    <string name="strip_title">Voice messages as text (%1$d)</string>
+    <string name="strip_close">Hide</string>
 </resources>

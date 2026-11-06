@@ -57,7 +57,7 @@ class TranscriptLog(private val file: File, private val limit: Int = 50) {
             return Transcript(time, source, unescape(parts[2]))
         }
 
-        private fun escape(text: String): String = buildString {
+        fun escape(text: String): String = buildString {
             for (c in text) {
                 when (c) {
                     '\\' -> append("\\\\")
@@ -69,7 +69,7 @@ class TranscriptLog(private val file: File, private val limit: Int = 50) {
             }
         }
 
-        private fun unescape(text: String): String = buildString {
+        fun unescape(text: String): String = buildString {
             var i = 0
             while (i < text.length) {
                 val c = text[i]

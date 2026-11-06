@@ -9,6 +9,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.text.format.DateUtils
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.ViewConfiguration
@@ -34,6 +35,10 @@ class FloatingMicService : AccessibilityService() {
     private var listening: Listening? = null
     private var live: LiveText? = null
     private lateinit var bubble: LiveBubble
+    private lateinit var strip: ChatStrip
+
+    /** Per chat: the newest voice message the user closed the strip on. */
+    private val closed = HashMap<String, Long>()
 
     /** Tapped, waiting for the microphone service before recording. */
     private var starting = false
@@ -47,6 +52,7 @@ class FloatingMicService : AccessibilityService() {
         instance = this
         windows = getSystemService(WindowManager::class.java)
         bubble = LiveBubble(this, windows)
+        strip = ChatStrip(this, windows)
         update()
     }
 
@@ -67,6 +73,7 @@ class FloatingMicService : AccessibilityService() {
         starting = false
         MicService.stop()
         hide()
+        strip.hide()
         super.onDestroy()
     }
 
@@ -75,8 +82,14 @@ class FloatingMicService : AccessibilityService() {
         listening?.finish()
     }
 
+    /** A voice message was transcribed: an open chat's strip shows it. */
+    fun voiceNotesChanged() {
+        update()
+    }
+
     /** Show the button when a text field has focus (and while it records or transcribes). */
     private fun update() {
+        updateStrip()
         val wanted = Settings(this).startWith.button && ModelDownload(this).installed()
         val working = listening != null || busy || starting
         // Dictate's own keyboard has the big button already.
@@ -87,6 +100,48 @@ class FloatingMicService : AccessibilityService() {
             return
         }
         show(keyboardTop())
+    }
+
+    /**
+     * Over an open WhatsApp chat, its transcribed voice messages of the last days: the chat's name
+     * comes from WhatsApp's header (the only thing read there), the texts from [VoiceNoteLog].
+     */
+    private fun updateStrip() {
+        val chat = if (Settings(this).voiceNotes) openChat() else null
+        if (chat == null) {
+            strip.hide()
+            return
+        }
+        val since = System.currentTimeMillis() - STRIP_DAYS * DateUtils.DAY_IN_MILLIS
+        val notes = AppFiles(this).voiceNotes.forChat(chat.name, since)
+        val key = chat.name.lowercase()
+        if (notes.isEmpty() || (closed[key] ?: 0L) >= notes.first().time) {
+            strip.hide()
+            return
+        }
+        strip.show(notes, chat.bottom, chat.group) {
+            closed[key] = notes.first().time
+            strip.hide()
+        }
+    }
+
+    private class OpenChat(val name: String, val bottom: Int, val group: Boolean)
+
+    /** The WhatsApp chat in front: its name and the bottom of its header, or null. */
+    private fun openChat(): OpenChat? {
+        val root = runCatching { rootInActiveWindow }.getOrNull() ?: return null
+        val app = root.packageName?.toString() ?: return null
+        if (app !in VoiceNotes.PACKAGES) return null
+        val title = root.findAccessibilityNodeInfosByViewId("$app:id/conversation_contact_name").firstOrNull()
+            ?: return null
+        val name = title.text?.toString()?.takeIf { it.isNotBlank() } ?: return null
+        val bounds = Rect()
+        val header = root.findAccessibilityNodeInfosByViewId("$app:id/toolbar").firstOrNull()
+        (header ?: title).getBoundsInScreen(bounds)
+        // A group's header shows its members below the name.
+        val group = root.findAccessibilityNodeInfosByViewId("$app:id/conversation_contact_status")
+            .firstOrNull()?.text?.contains(",") == true
+        return OpenChat(name, bounds.bottom, group)
     }
 
     private fun editableFocus(): AccessibilityNodeInfo? =
@@ -344,6 +399,9 @@ class FloatingMicService : AccessibilityService() {
     }
 
     companion object {
+        /** How far back the strip over a chat goes. */
+        private const val STRIP_DAYS = 3L
+
         /** The running service, for the notification's Stop. */
         var instance: FloatingMicService? = null
             private set

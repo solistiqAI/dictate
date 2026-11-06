@@ -1,12 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
   The floating mic button (FloatingMicService): it needs to know when a text field has focus and
-  where the keyboard is, and to put the text into the field. Nothing else is read.
+  where the keyboard is, and to put the text into the field. With WhatsApp voice messages on, it
+  also reads the name of an open WhatsApp chat from its header (view ids, hence flagReportViewIds)
+  to show that chat's transcribed voice messages above it. Nothing else is read.
 -->
 <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
     android:accessibilityEventTypes="typeViewFocused|typeWindowStateChanged|typeWindowsChanged|typeViewTextSelectionChanged"
     android:accessibilityFeedbackType="feedbackGeneric"
-    android:accessibilityFlags="flagRetrieveInteractiveWindows"
+    android:accessibilityFlags="flagRetrieveInteractiveWindows|flagReportViewIds"
     android:canRetrieveWindowContent="true"
     android:description="@string/button_service_description"
     android:notificationTimeout="80"

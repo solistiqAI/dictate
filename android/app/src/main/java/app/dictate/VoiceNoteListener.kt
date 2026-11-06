@@ -58,9 +58,10 @@ class VoiceNoteListener : NotificationListenerService() {
             group != null && sender != null && group.toString() != sender.toString() -> "$sender ($group)"
             else -> sender?.toString()
         }
+        val chat = (group ?: sender)?.toString().orEmpty()
         // The file is written while WhatsApp downloads it, around the notification's time.
         val since = minOf(message.time, sbn.postTime) - SLACK_MILLIS
-        worker.execute { transcribe(who, since, notification.contentIntent) }
+        worker.execute { transcribe(who, chat, sender?.toString().orEmpty(), since, notification.contentIntent) }
     }
 
     /** The newest message of a chat's notification (MessagingStyle), else its text. */
@@ -84,7 +85,7 @@ class VoiceNoteListener : NotificationListenerService() {
     }
 
     /** On the worker: wait for WhatsApp's download, then decode and transcribe it. */
-    private fun transcribe(who: String?, since: Long, open: PendingIntent?) {
+    private fun transcribe(who: String?, chat: String, sender: String, since: Long, open: PendingIntent?) {
         val file = waitForFile(since) ?: run {
             Log.w(Engine.TAG, "voice message: no new file in WhatsApp's folder")
             return
@@ -99,7 +100,11 @@ class VoiceNoteListener : NotificationListenerService() {
             result.onSuccess { text ->
                 if (text.isBlank()) return@onSuccess
                 val line = VoiceNotes.line(who, text)
-                AppFiles(this).transcripts.add(Transcript(System.currentTimeMillis(), Transcript.Source.MESSAGE, line))
+                val now = System.currentTimeMillis()
+                AppFiles(this).transcripts.add(Transcript(now, Transcript.Source.MESSAGE, line))
+                if (chat.isNotBlank()) AppFiles(this).voiceNotes.add(VoiceNote(now, chat, sender, text))
+                // An open chat's strip shows it at once.
+                FloatingMicService.instance?.voiceNotesChanged()
                 show(who, text, open)
             }.onFailure { Log.w(Engine.TAG, "voice message not transcribed: ${Engine.describe(it)}") }
         }

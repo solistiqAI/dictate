@@ -90,7 +90,7 @@
     <string name="timing">Zuletzt: %1$s s Ton in %2$s s abgeschrieben</string>
 
     <string name="button_service_name">Dictate-Taste</string>
-    <string name="button_service_description">Zeigt eine Mikrofon-Taste über der Tastatur, wenn ein Textfeld aktiv ist. Antippen, sprechen, nochmal antippen: Dictate schreibt auf diesem Handy ab und setzt den Text ins Feld. Dafür muss es sehen, welches Feld aktiv ist und wo die Tastatur liegt; sonst wird nichts gelesen, gespeichert oder gesendet.</string>
+    <string name="button_service_description">Zeigt eine Mikrofon-Taste über der Tastatur, wenn ein Textfeld aktiv ist. Antippen, sprechen, nochmal antippen: Dictate schreibt auf diesem Handy ab und setzt den Text ins Feld. Dafür muss es sehen, welches Feld aktiv ist und wo die Tastatur liegt. Sind WhatsApp-Sprachnachrichten an, liest es außerdem den Namen eines offenen WhatsApp-Chats, um dessen Sprachnachrichten darüber als Text zu zeigen. Sonst wird nichts gelesen, gespeichert oder gesendet.</string>
     <string name="button_copied">Kopiert: füge es ein, wo du es brauchst</string>
     <string name="keyboard_nothing">Nichts gehört</string>
     <string name="mic_silenced">Android hat das Mikrofon stummgeschaltet, nichts gehört: versuch es noch mal</string>
@@ -109,4 +109,6 @@
     <string name="voice_notes_channel">Sprachnachrichten als Text</string>
     <string name="voice_notes_listener">Dictate: WhatsApp-Sprachnachrichten</string>
     <string name="voice_notes_someone">Sprachnachricht</string>
+    <string name="strip_title">Sprachnachrichten als Text (%1$d)</string>
+    <string name="strip_close">Ausblenden</string>
 </resources>
