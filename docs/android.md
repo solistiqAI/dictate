@@ -50,7 +50,7 @@ by itself (its default). Nothing of the notifications is kept or logged but the 
 Over an open WhatsApp chat, a dark strip below WhatsApp's header shows that chat's transcribed
 voice messages of the last three days (`ChatStrip`, from `VoiceNoteLog`): one line with the newest;
 a tap shows them all, each in full (in a group with the sender), a long press on one copies it, ✕
-folds it into a small chip ("🎤 3") at the right, which opens it again; the chat's next voice
+folds it into a small chip (the level bars and the count) at the right, which opens it again; the chat's next voice
 message opens it by itself. Every transcript is also in the app's recent transcripts.
 
 Try it without anyone sending a voice message (debug build only; `TestVoiceNoteReceiver`, callable

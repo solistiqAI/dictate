@@ -12,6 +12,7 @@ import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
@@ -20,7 +21,7 @@ import android.widget.Toast
 /**
  * The strip over an open WhatsApp chat with its transcribed voice messages: one line with the
  * newest; a tap shows them all (newest first, each in full), a long press on one copies it. ✕
- * folds it into a small chip ("🎤 3") at the right, which opens it again; the chat's next voice
+ * folds it into a small chip (the level bars and the count) at the right, which opens it again; the chat's next voice
  * message opens it by itself.
  */
 @SuppressLint("SetTextI18n")
@@ -78,13 +79,14 @@ class ChatStrip(private val context: Context, private val windows: WindowManager
             if (expanded) {
                 context.getString(R.string.strip_title, shown.size)
             } else {
-                "🎤 ${label(newest, group)}  ${newest.text}"
+                "${label(newest, group)}  ${newest.text}"
             },
             bold = expanded,
         ).apply {
             maxLines = 1
             ellipsize = TextUtils.TruncateAt.END
         }
+        head.addView(bars(), LinearLayout.LayoutParams(dp(18), dp(18)).apply { marginEnd = dp(8) })
         head.addView(summary, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
         if (!expanded && shown.size > 1) head.addView(text(" +${shown.size - 1}", dim = true))
         head.addView(
@@ -143,7 +145,7 @@ class ChatStrip(private val context: Context, private val windows: WindowManager
         place(root, layout)
     }
 
-    /** Folded: "🎤 3" at the right below the header; a tap opens the strip again. */
+    /** Folded: the bars and the count at the right below the header; a tap opens the strip again. */
     private fun chip() {
         val root = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -154,7 +156,8 @@ class ChatStrip(private val context: Context, private val windows: WindowManager
             }
             setPadding(dp(12), dp(6), dp(12), dp(6))
             contentDescription = context.getString(R.string.strip_open)
-            addView(text("🎤 ${shown.size}"))
+            addView(bars(), LinearLayout.LayoutParams(dp(18), dp(18)).apply { marginEnd = dp(6) })
+            addView(text("${shown.size}"))
             setOnClickListener { onOpen() }
         }
         val layout = WindowManager.LayoutParams(
@@ -194,6 +197,12 @@ class ChatStrip(private val context: Context, private val windows: WindowManager
         setTextColor(if (dim) DIM else Color.WHITE)
         if (bold) setTypeface(typeface, android.graphics.Typeface.BOLD)
         importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES
+    }
+
+    /** The app icon's level bars (instead of a microphone emoji). */
+    private fun bars() = ImageView(context).apply {
+        setImageResource(R.drawable.ic_bars)
+        importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
     }
 
     private fun dp(value: Int): Int = (value * density).toInt()

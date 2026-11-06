@@ -166,7 +166,7 @@ class VoiceNoteListener : NotificationListenerService() {
             )
             val notification = Notification.Builder(context, CHANNEL)
                 .setSmallIcon(R.drawable.ic_bars)
-                .setContentTitle("🎤 " + (who ?: context.getString(R.string.voice_notes_someone)))
+                .setContentTitle(who ?: context.getString(R.string.voice_notes_someone))
                 .setContentText(text)
                 .setStyle(Notification.BigTextStyle().bigText(text))
                 .setContentIntent(tap)
