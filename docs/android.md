@@ -97,6 +97,12 @@ pass at a time, at least 0.6 s apart and twice as long as the last pass took; th
 into the field is still the pass over the whole recording at the end. The voice keyboard shows
 the words so far in the field itself, as underlined composing text, replaced by the final text.
 
+When a keyboard's mic key (HeliBoard, FlorisBoard) opens the voice keyboard while the floating
+button's accessibility service is on, the voice keyboard hands over at once: the recording runs in
+that service, the user's keyboard comes straight back, and the live text shows in the bubble above
+it, with the button (red) to stop. A pause of 1.5 s after speech ends it too, and so does the mic
+key pressed again. Without the service the voice keyboard records itself, as before.
+
 ### The system's voice input
 
 `DictateRecognizer` is an `android.speech.RecognitionService`, and `RecognizeActivity` answers

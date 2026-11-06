@@ -81,7 +81,8 @@ class FloatingMicService : AccessibilityService() {
         val working = listening != null || busy || starting
         // Dictate's own keyboard has the big button already.
         val field = editableFocus()?.takeIf { !Setup.keyboardChosen(this) }
-        if (!wanted || (field == null && !working)) {
+        // While it records (also when a keyboard's mic key started it), the button stays: it stops.
+        if (!working && (!wanted || field == null)) {
             hide()
             return
         }
@@ -217,10 +218,32 @@ class FloatingMicService : AccessibilityService() {
             startActivity(Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
             return
         }
-        target = editableFocus()
+        record(editableFocus(), handsFree = false)
+    }
+
+    /**
+     * A keyboard's mic key opened the voice keyboard, which hands over to here so the user's own
+     * keyboard comes straight back and the live text shows above it, as with the button: start
+     * listening for the focused field (hands-free: a pause ends it), or stop when it already
+     * listens. False when it can't (no microphone permission, no text field).
+     */
+    fun fromKeyboard(): Boolean {
+        if (busy || starting) return true
+        listening?.let {
+            it.finish()
+            return true
+        }
+        if (!Setup.micGranted(this)) return false
+        val field = editableFocus() ?: return false
+        record(field, handsFree = true)
+        return true
+    }
+
+    private fun record(field: AccessibilityNodeInfo?, handsFree: Boolean) {
+        target = field
         val listen = Listening(
             this,
-            handsFree = false,
+            handsFree = handsFree,
             object : Listening.Events {
                 override fun level(value: Float) {
                     button?.level(value)
@@ -251,6 +274,7 @@ class FloatingMicService : AccessibilityService() {
             listening = listen
             live = LiveText(this, listen) { text -> showLive(text) }.also { it.start() }
             refresh()
+            update()
         }
     }
 

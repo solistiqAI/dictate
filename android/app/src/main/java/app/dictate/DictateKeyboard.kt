@@ -51,9 +51,23 @@ class DictateKeyboard : InputMethodService(), KeyboardView.Listener {
     /** Shown: someone switched to the voice keyboard to talk, so listen right away. */
     override fun onWindowShown() {
         super.onWindowShown()
+        if (listening == null && !busy && setupProblem() == null && handOver()) return
         if (listening == null && !busy && setupProblem() == null) {
             if (startListening(handsFree = true)) gesture.startedElsewhere()
         }
+    }
+
+    /**
+     * With the floating button's service on, the recording runs there and the keyboard the user
+     * came from comes straight back: the live text shows above it (as with the button) instead of
+     * this keyboard taking its place. The mic key again stops it.
+     */
+    private fun handOver(): Boolean {
+        if (!Settings(this).startWith.keyboard) return false
+        val service = FloatingMicService.instance ?: return false
+        if (!service.fromKeyboard()) return false
+        switchToPreviousInputMethod()
+        return true
     }
 
     override fun onWindowHidden() {
