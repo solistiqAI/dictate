@@ -3,6 +3,9 @@
   The voice keyboard (DictateKeyboard). Its one subtype is of mode "voice": that makes it the
   input method other keyboards' mic keys hand off to (AOSP keyboards, HeliBoard, FlorisBoard ask
   InputMethodManager.getShortcutInputMethodsAndSubtypes()). No locale: Parakeet detects the language.
+  overridesImplicitlyEnabledSubtype: without a locale Android enables no subtype of it by itself
+  (it picks subtypes by the system language), so getShortcutInputMethodsAndSubtypes() found none
+  and HeliBoard hid its mic key (Galaxy S25, Android 17).
 -->
 <input-method xmlns:android="http://schemas.android.com/apk/res/android"
     android:settingsActivity="app.dictate.MainActivity"
@@ -10,5 +13,6 @@
     <subtype
         android:imeSubtypeMode="voice"
         android:imeSubtypeLocale=""
+        android:overridesImplicitlyEnabledSubtype="true"
         android:label="@string/keyboard_name" />
 </input-method>
