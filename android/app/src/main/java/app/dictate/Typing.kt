@@ -78,6 +78,18 @@ fun formatSize(bytes: Long, locale: java.util.Locale = java.util.Locale.getDefau
 data class Insertion(val text: String, val cursor: Int) {
     companion object {
         /**
+         * What a field holds, from its accessibility [text]: nothing when that is only its
+         * placeholder (WhatsApp's "Nachricht"). Android hands out the placeholder as the text of an
+         * empty field; [showingHint] says so, but not every app's field sets it, so the text is
+         * compared with the [hint] too.
+         */
+        fun fieldText(text: CharSequence?, hint: CharSequence?, showingHint: Boolean): String {
+            if (showingHint) return ""
+            val current = text?.toString().orEmpty()
+            return if (!hint.isNullOrEmpty() && current == hint.toString()) "" else current
+        }
+
+        /**
          * [dictated] into [current] in place of the selection [start]..[end] (either -1: unknown,
          * so at the end), joined as [Typing.join] does.
          */

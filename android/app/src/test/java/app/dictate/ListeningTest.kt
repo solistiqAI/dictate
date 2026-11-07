@@ -41,6 +41,16 @@ class ListeningTest {
     }
 
     @Test
+    fun a_placeholder_is_not_text() {
+        assertEquals("", Insertion.fieldText("Nachricht", "Nachricht", showingHint = true))
+        // A field that hands out its placeholder without saying it shows it.
+        assertEquals("", Insertion.fieldText("Nachricht", "Nachricht", showingHint = false))
+        assertEquals("Hallo", Insertion.fieldText("Hallo", "Nachricht", showingHint = false))
+        assertEquals("Hallo", Insertion.fieldText("Hallo", null, showingHint = false))
+        assertEquals("", Insertion.fieldText(null, "Nachricht", showingHint = false))
+    }
+
+    @Test
     fun voice_messages_at_48_khz_are_kept_at_16() {
         assertEquals(3, Decimator.factorFor(48_000))
         assertEquals(1, Decimator.factorFor(44_100))

@@ -393,7 +393,7 @@ class FloatingMicService : AccessibilityService() {
             Toast.makeText(this, R.string.button_copied, Toast.LENGTH_SHORT).show()
             return
         }
-        val current = if (node.isShowingHintText) "" else node.text?.toString().orEmpty()
+        val current = Insertion.fieldText(node.text, node.hintText, node.isShowingHintText)
         val canSet = node.actionList.any { it.id == AccessibilityNodeInfo.ACTION_SET_TEXT }
         if (canSet) {
             val edit = Insertion.of(current, node.textSelectionStart, node.textSelectionEnd, text)
