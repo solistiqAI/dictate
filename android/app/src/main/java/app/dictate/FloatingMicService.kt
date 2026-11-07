@@ -16,15 +16,14 @@ import android.view.ViewConfiguration
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
-import android.view.accessibility.AccessibilityWindowInfo
 import android.widget.Toast
 import kotlin.math.abs
 
 /**
  * The floating mic button, for any keyboard (Gboard's own mic key always opens Google's voice
- * typing): a small round button just above the keyboard while a text field has focus. Tap: record;
- * tap again: stop, transcribe, and the text goes into the field. Drag it anywhere; it keeps its
- * place (relative to the keyboard's top). Needs nothing but this accessibility service, which reads
+ * typing): a small round button while a text field has focus. Tap: record; tap again: stop,
+ * transcribe, and the text goes into the field. Drag it anywhere, over the keyboard too; it keeps
+ * that place on the screen and does not follow the keyboard. Needs nothing but this accessibility service, which reads
  * which field has focus and writes into it; nothing is read or kept otherwise.
  */
 class FloatingMicService : AccessibilityService() {
@@ -44,8 +43,10 @@ class FloatingMicService : AccessibilityService() {
     private var starting = false
     private var busy = false
     private var target: AccessibilityNodeInfo? = null
-    private var anchor = 0
     private val updateSoon = Runnable { update() }
+
+    /** A finger moves the button. */
+    private var dragging = false
 
     override fun onServiceConnected() {
         super.onServiceConnected()
@@ -99,7 +100,9 @@ class FloatingMicService : AccessibilityService() {
             hide()
             return
         }
-        show(keyboardTop())
+        // While a finger moves the button, it stays where the finger is.
+        if (dragging) return
+        show()
     }
 
     /**
@@ -163,20 +166,6 @@ class FloatingMicService : AccessibilityService() {
         findFocus(AccessibilityNodeInfo.FOCUS_INPUT)
             ?.takeIf { it.isEditable && !it.isPassword && it.packageName != packageName }
 
-    /** The top of the keyboard on screen, or the bottom of the screen without one. */
-    private fun keyboardTop(): Int {
-        val bounds = Rect()
-        for (window in windows()) {
-            if (window.type == AccessibilityWindowInfo.TYPE_INPUT_METHOD) {
-                window.getBoundsInScreen(bounds)
-                return bounds.top
-            }
-        }
-        return screen().bottom
-    }
-
-    private fun windows(): List<AccessibilityWindowInfo> = runCatching { getWindows() }.getOrDefault(emptyList())
-
     private fun screen(): Rect =
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             windows.currentWindowMetrics.bounds
@@ -187,14 +176,17 @@ class FloatingMicService : AccessibilityService() {
 
     private fun size(): Int = (64 * resources.displayMetrics.density).toInt()
 
-    private fun show(top: Int) {
-        anchor = top
+    /**
+     * Where the user put it, on the screen, and nowhere else: it does not follow the keyboard, so it
+     * never moves while typing. First time: on the right, about where a keyboard's top is.
+     */
+    private fun show() {
         val settings = Settings(this)
         val screen = screen()
         val size = size()
         val margin = (12 * resources.displayMetrics.density).toInt()
         val x = settings.buttonX.takeIf { it >= 0 } ?: (screen.right - size - margin)
-        val above = settings.buttonAbove.takeIf { it >= 0 } ?: margin
+        val y = settings.buttonY ?: (screen.bottom * DEFAULT_Y).toInt()
         val layout = params ?: WindowManager.LayoutParams(
             size,
             size,
@@ -202,9 +194,13 @@ class FloatingMicService : AccessibilityService() {
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
             PixelFormat.TRANSLUCENT,
         ).apply { gravity = Gravity.TOP or Gravity.START }
-        layout.x = x.coerceIn(0, maxOf(0, screen.right - size))
-        layout.y = (top - above - size).coerceIn(0, maxOf(0, screen.bottom - size))
+        val newX = x.coerceIn(0, maxOf(0, screen.right - size))
+        val newY = y.coerceIn(0, maxOf(0, screen.bottom - size))
         val view = button
+        // Every typed letter brings events: only touch the window when the place changed.
+        if (view != null && newX == layout.x && newY == layout.y) return
+        layout.x = newX
+        layout.y = newY
         if (view == null) {
             val created = MicButton(this, 52)
             created.icon.setOnTouchListener(Drag(layout))
@@ -241,7 +237,6 @@ class FloatingMicService : AccessibilityService() {
         private var downY = 0f
         private var startX = 0
         private var startY = 0
-        private var dragging = false
 
         @SuppressLint("ClickableViewAccessibility")
         override fun onTouch(view: android.view.View, event: MotionEvent): Boolean {
@@ -258,19 +253,29 @@ class FloatingMicService : AccessibilityService() {
                     val dy = event.rawY - downY
                     if (!dragging && (abs(dx) > slop || abs(dy) > slop)) dragging = true
                     if (dragging) {
-                        layout.x = startX + dx.toInt()
-                        layout.y = startY + dy.toInt()
+                        val screen = screen()
+                        val size = size()
+                        layout.x = (startX + dx.toInt()).coerceIn(0, maxOf(0, screen.right - size))
+                        layout.y = (startY + dy.toInt()).coerceIn(0, maxOf(0, screen.bottom - size))
                         button?.let { windows.updateViewLayout(it, layout) }
                     }
                 }
                 MotionEvent.ACTION_UP -> {
                     if (dragging) {
+                        dragging = false
                         val settings = Settings(this@FloatingMicService)
                         settings.buttonX = layout.x
-                        settings.buttonAbove = maxOf(0, anchor - layout.y - size())
+                        settings.buttonY = layout.y
+                        update()
                     } else {
                         view.performClick()
                         toggle()
+                    }
+                }
+                MotionEvent.ACTION_CANCEL -> {
+                    if (dragging) {
+                        dragging = false
+                        update()
                     }
                 }
             }
@@ -416,6 +421,9 @@ class FloatingMicService : AccessibilityService() {
     companion object {
         /** How far back the strip over a chat goes. */
         private const val STRIP_DAYS = 3L
+
+        /** The button's first place, from the top, as a share of the screen: just above most keyboards. */
+        private const val DEFAULT_Y = 0.5
 
         /** The running service, for the notification's Stop. */
         var instance: FloatingMicService? = null

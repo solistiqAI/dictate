@@ -11,9 +11,9 @@ download, and the **offline build** has no internet permission at all (below).
    with* floating button, my keyboard's mic key, or both). An app can't add a key to someone
    else's keyboard, so these are the two closest things:
    - **Floating button** (works with any keyboard, Gboard included): an accessibility service shows
-     a small round mic button just above the keyboard while a text field has focus. Tap, talk, tap
-     again; the text goes into the field. Drag it where you like; it keeps its place relative to
-     the keyboard's top.
+     a small round mic button on the right, about where a keyboard's top is, while a text field has
+     focus. Tap, talk, tap again; the text goes into the field. Drag it where you like, over the
+     keyboard too; it stays at that place on the screen and does not follow the keyboard.
    - **Your keyboard's mic key**: Dictate is a *voice input method*. Keyboards whose mic key hands
      off to the voice input method open it; it listens at once, stops when you stop talking (or on
      a tap), types the text and switches back to your keyboard. Made for **HeliBoard**.
@@ -107,8 +107,8 @@ HeliBoard hides its mic key when there is no voice input method at all.
 2. Android 13 and later grey that switch out for apps installed from an APK ("restricted
    setting"). Then: **App info** (the button next to it) → ⋮ (top right) → **Allow restricted
    settings** → confirm, and turn the service on again.
-3. Tap any text field: the button sits above the keyboard on the right. Drag it elsewhere if it
-   covers something. Tap, talk, tap again.
+3. Tap any text field: the button sits on the right, about at the keyboard's top. Drag it elsewhere
+   if it covers something; it stays there. Tap, talk, tap again.
 
 How the text gets into the field: Dictate sets the field's text with the dictation at the
 cursor (`ACTION_SET_TEXT`, then the cursor after it). That leaves the clipboard alone. Where a

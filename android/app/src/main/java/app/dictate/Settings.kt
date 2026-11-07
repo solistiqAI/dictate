@@ -17,14 +17,17 @@ class Settings(context: Context) {
         get() = StartWith.entries.find { it.name == prefs.getString(START_WITH, null) } ?: StartWith.BUTTON
         set(value) = prefs.edit().putString(START_WITH, value.name).apply()
 
-    /** The floating button's place: from the left edge, and above the keyboard (or the screen's bottom), in px. */
+    /**
+     * The floating button's place on the screen, in px from the left and from the top. It stays
+     * there whatever the keyboard does. Unset (-1, null): not moved yet.
+     */
     var buttonX: Int
         get() = prefs.getInt(BUTTON_X, -1)
         set(value) = prefs.edit().putInt(BUTTON_X, value).apply()
 
-    var buttonAbove: Int
-        get() = prefs.getInt(BUTTON_ABOVE, -1)
-        set(value) = prefs.edit().putInt(BUTTON_ABOVE, value).apply()
+    var buttonY: Int?
+        get() = if (prefs.contains(BUTTON_Y)) prefs.getInt(BUTTON_Y, 0) else null
+        set(value) = prefs.edit().apply { if (value == null) remove(BUTTON_Y) else putInt(BUTTON_Y, value) }.apply()
 
     /** Incoming WhatsApp voice messages to text by themselves ([VoiceNoteListener]). */
     var voiceNotes: Boolean
@@ -35,6 +38,6 @@ class Settings(context: Context) {
         private const val VOICE_NOTES = "voice_notes"
         private const val START_WITH = "start_with"
         private const val BUTTON_X = "button_x"
-        private const val BUTTON_ABOVE = "button_above"
+        private const val BUTTON_Y = "button_y"
     }
 }
