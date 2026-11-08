@@ -141,13 +141,10 @@ No backend, no updater: Dictate is one binary in a signed `.app`, built and inst
   `~/Library/Application Support/dictate/models/`).
 - **Check after install:** `pgrep -lf Dictate.app` and the end of
   `~/Library/Application Support/dictate/dictate.log` ("model loaded", "microphone: …", "Bereit"/"Ready").
-- **Icon:** `assets/app-icon.svg` → `scripts/icon.sh` → `assets/AppIcon.icns` (commit both). The
-  menu bar's image: `assets/menubar.svg` (the same mark and bars drawn for 18 pt, black, only
-  opacity counts) → `assets/MenuBarIcon.png`, 72 px high, embedded by `src/glyph.rs`; render it
-  with a headless Chrome on a transparent background (`--default-background-color=00000000
-  --window-size=<width>,72 --screenshot=… file://…/menubar.svg`). Android's launcher icon is
-  the same drawing as vectors (`android/app/src/main/res/drawable/ic_launcher_*.xml`): change
-  all three together.
+- **Icon:** `assets/app-icon.svg` → `scripts/icon.sh` → `assets/AppIcon.icns` (commit both).
+  Android's launcher icon is the same drawing as vectors
+  (`android/app/src/main/res/drawable/ic_launcher_*.xml`): change both together. The menu bar
+  shows only the voice bars (`src/glyph.rs`, drawn in code), no mark.
 
 ## Windows (beta)
 
@@ -189,8 +186,8 @@ what to try first: `docs/linux.md`.
   goes into its profile (or brand folder), kept in its own private team repo (`docs/teams.md`); a
   new kind of setting becomes a profile key here with a neutral default, the team's value stays in
   its repo. When you work for such a team, its repo's `AGENTS.md` has the rest. The one
-  exception is the maintainers' mark: the app's icons (Mac, menu bar, Android launcher) and the
-  README logo carry the SOLISTIQ mark, a trademark outside the MIT licence (`NOTICE.md`). Nothing
+  exception is the maintainers' mark: the app icons (Mac, Android launcher) and the README logo
+  carry the SOLISTIQ mark, a trademark outside the MIT licence (`NOTICE.md`). Nothing
   else of SOLISTIQ goes here.
 - **Changes come as pull requests**: work on a branch (in a fork without write access) and open a
   pull request against `main`; never commit or push to `main` directly. Only the maintainers push

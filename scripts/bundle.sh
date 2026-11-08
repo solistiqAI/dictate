@@ -3,8 +3,8 @@
 #
 # A team's own build (bundle id, signing identity, icon) comes from a brand folder:
 # DICTATE_BRAND=<folder> with brand.env (sets DICTATE_BUNDLE_ID, DICTATE_SIGN_IDENTITY),
-# AppIcon.icns and, if it likes, MenuBarIcon.png (the menu bar's image instead of the built-in
-# one: black on transparent, 72 px high; src/glyph.rs). Without one: bundle id app.dictate, the
+# AppIcon.icns and, if it likes, MenuBarIcon.png (the menu bar's image instead of the voice
+# bars: black on transparent, 72 px high; src/glyph.rs). Without one: bundle id app.dictate, the
 # icons in assets/ (the SOLISTIQ mark, NOTICE.md), and signed with $DICTATE_SIGN_IDENTITY when
 # set, else ad-hoc. macOS ties the Microphone and Accessibility
 # permissions to bundle id + identity: a stable identity keeps them across rebuilds, ad-hoc loses
