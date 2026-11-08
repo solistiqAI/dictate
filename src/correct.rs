@@ -16,7 +16,7 @@
 //! stay digits or words as Parakeet wrote them); only the punctuation before a cut and the capital
 //! letter after it follow the proposal.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::Sender;
@@ -304,12 +304,16 @@ fn gemma(model: &Llm, sents: &[String]) -> anyhow::Result<(Vec<String>, usize)> 
 // Tidying up while dictating: once a sentence of the live text is done, Gemma reads it in the
 // background (one sentence at a time, never in the way of recording or the live text) and the
 // overlay shows its cuts struck through. What gets pasted is still decided after the recording;
-// that pass reuses a proposal when it gets the very same text.
+// that pass reuses a proposal when it gets the very same text. A sentence with words struck goes
+// to it on its own (not in a piece with its neighbours), so it gets the very same text and what
+// was struck is what goes: in a longer piece Gemma reads the words in context and may keep them.
 
 /// Gemma's proposals by the text it got, from the live pass (and the final one).
 static PROPOSALS: Mutex<BTreeMap<String, String>> = Mutex::new(BTreeMap::new());
 /// The words cut from each finished live sentence (indices of its whitespace-separated words).
 static MARKS: Mutex<BTreeMap<String, Vec<usize>>> = Mutex::new(BTreeMap::new());
+/// Live sentences Gemma cut words from (filler words aside), as the model got them.
+static STRUCK: Mutex<BTreeSet<String>> = Mutex::new(BTreeSet::new());
 /// Counts recordings; sentences of an earlier one are dropped unread.
 static GENERATION: AtomicU64 = AtomicU64::new(0);
 static CLEANER: Mutex<Option<Sender<(u64, String)>>> = Mutex::new(None);
@@ -319,6 +323,7 @@ pub fn live_begin() {
     GENERATION.fetch_add(1, Ordering::SeqCst);
     PROPOSALS.lock().unwrap().clear();
     MARKS.lock().unwrap().clear();
+    STRUCK.lock().unwrap().clear();
 }
 
 /// The recording stopped: sentences still waiting are not read any more.
@@ -380,8 +385,21 @@ fn tidy(generation: u64, sentence: &str) {
         started.elapsed().as_secs_f32()
     );
     if generation == GENERATION.load(Ordering::SeqCst) {
+        // Gemma's cuts, not the filler words (those go by rule in any piece).
+        let (tokens, _, _) = drop_fillers(sentence);
+        if !sentence.contains('\n') && !struck(&tokens.join(" "), &out).is_empty() {
+            STRUCK.lock().unwrap().insert(cue_text(&tokens).join(" "));
+        }
         MARKS.lock().unwrap().insert(sentence.to_string(), cut);
     }
+}
+
+/// Whether the live pass struck words of this sentence (tokens as `drop_fillers` gives them).
+fn struck_live(sentence: &[String]) -> bool {
+    STRUCK
+        .lock()
+        .unwrap()
+        .contains(&cue_text(sentence).join(" "))
 }
 
 /// The cut words of a finished live sentence, once Gemma has read it.
@@ -445,8 +463,9 @@ struct Piece {
 /// pieces that run side by side (`llm::Llm::ask_all`), so the wait does not grow with the length.
 const PIECE_WORDS: usize = 40;
 
-/// The line's tokens split at sentence ends into runs of about `PIECE_WORDS` words.
-fn pieces_of(tokens: &[String]) -> Vec<std::ops::Range<usize>> {
+/// The line's tokens split at sentence ends into runs of about `PIECE_WORDS` words. A sentence
+/// `alone` says so is a piece of its own (one the live pass struck words of).
+fn pieces_of(tokens: &[String], alone: impl Fn(&[String]) -> bool) -> Vec<std::ops::Range<usize>> {
     let mut sentences = Vec::new();
     let mut start = 0;
     for (i, token) in tokens.iter().enumerate() {
@@ -462,11 +481,17 @@ fn pieces_of(tokens: &[String]) -> Vec<std::ops::Range<usize>> {
             .count()
     };
     let mut pieces: Vec<std::ops::Range<usize>> = Vec::new();
+    // Whether the last piece takes more sentences.
+    let mut open = false;
     for sentence in sentences {
+        let own = alone(&tokens[sentence.clone()]);
         match pieces.last_mut() {
-            Some(last) if words(last) + words(&sentence) <= PIECE_WORDS => last.end = sentence.end,
+            Some(last) if open && !own && words(last) + words(&sentence) <= PIECE_WORDS => {
+                last.end = sentence.end
+            }
             _ => pieces.push(sentence),
         }
+        open = !own;
     }
     if pieces.is_empty() {
         pieces.push(0..0);
@@ -505,7 +530,7 @@ fn tidy_with(
             notes.push(format!("{fillers} filler words"));
         }
         let ranges = match local {
-            true => pieces_of(&tokens),
+            true => pieces_of(&tokens, struck_live),
             false => std::iter::once(0..tokens.len()).collect(),
         };
         for range in ranges {
@@ -1489,7 +1514,34 @@ mod tests {
             .split_whitespace()
             .map(String::from)
             .collect();
-        assert_eq!(pieces_of(&tokens), vec![0..tokens.len()]);
+        assert_eq!(pieces_of(&tokens, |_| false), vec![0..tokens.len()]);
+        // One the live pass struck words of goes on its own, so it gets the same answer again.
+        let alone = |s: &[String]| s[0] == "Nein,";
+        assert_eq!(pieces_of(&tokens, alone), vec![0..5, 5..9, 9..11]);
+    }
+
+    #[test]
+    fn a_sentence_struck_live_is_asked_on_its_own() {
+        let struck = "Also das gehen wir mit dem Vermieter durch.";
+        let (tokens, _, _) = drop_fillers(struck);
+        STRUCK.lock().unwrap().insert(cue_text(&tokens).join(" "));
+        let text = format!(
+            "Wie schwierig ist es, so einen Antrag zu stellen? {struck} Oder wie geht das?"
+        );
+        // Without it the three would be one piece; Gemma's answer for it alone is the live one.
+        let out = run_local(
+            &text,
+            &[
+                "Wie schwierig ist es, so einen Antrag zu stellen?",
+                "Das gehen wir mit dem Vermieter durch.",
+                "Oder wie geht das?",
+            ],
+        );
+        STRUCK.lock().unwrap().remove(&cue_text(&tokens).join(" "));
+        assert_eq!(
+            out.0,
+            "Wie schwierig ist es, so einen Antrag zu stellen? Das gehen wir mit dem Vermieter durch. Oder wie geht das?"
+        );
     }
 
     #[test]
