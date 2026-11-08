@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The app icon in one colour for themed icons (Android 13+): only opacity counts; the faces lighter, so the folds show. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- assets/app-icon.svg's 1024 units, its tile filling the adaptive icon's safe zone -->
+    <group
+        android:scaleX="0.0957"
+        android:scaleY="0.0957"
+        android:translateX="5.002"
+        android:translateY="5.002">
+        <!-- the SOLISTIQ mark (a trademark, see NOTICE.md): translate(280 290) scale(.86) translate(-250 -187.87) -->
+        <group
+            android:pivotX="250"
+            android:pivotY="187.87"
+            android:scaleX="0.86"
+            android:scaleY="0.86"
+            android:translateX="30"
+            android:translateY="102.13">
+            <path android:fillColor="#FFFFFF" android:pathData="M351.55 612.13 250 557.61V319.49L351.55 374zM549.99 602.39l-101.55-54.51V426.01l101.55 54.51zM550 420.1l-101.56-54.51V187.87L550 242.39z" />
+            <path android:fillColor="#FFFFFF" android:fillAlpha="0.6" android:pathData="m250 557.61 101.55 54.52 198.44-131.6-101.55-54.52zM250 319.49 351.55 374 550 242.39l-101.56-54.52z" />
+        </group>
+        <path android:fillColor="#FFFFFF" android:pathData="M611,560a11,11 0,0 1,11,11v42a11,11 0,0 1,-22,0v-42a11,11 0,0 1,11,-11zM646,528a11,11 0,0 1,11,11v106a11,11 0,0 1,-22,0v-106a11,11 0,0 1,11,-11zM681,494a11,11 0,0 1,11,11v174a11,11 0,0 1,-22,0v-174a11,11 0,0 1,11,-11zM716,536a11,11 0,0 1,11,11v90a11,11 0,0 1,-22,0v-90a11,11 0,0 1,11,-11zM751,564a11,11 0,0 1,11,11v34a11,11 0,0 1,-22,0v-34a11,11 0,0 1,11,-11z" />
+    </group>
+</vector>

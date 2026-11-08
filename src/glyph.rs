@@ -1,56 +1,24 @@
-//! The menu bar glyph: the voice bars of the app icon (`assets/app-icon.svg`) on their own, as a
-//! black template image. A team's build can put its own beside them: `MenuBarIcon.png` in its
-//! brand folder, which `scripts/bundle.sh` copies into the app's Resources (`brand`).
+//! The menu bar image: the app icon's mark and voice bars (`assets/app-icon.svg`), drawn for 18 pt
+//! as a black template image (`assets/menubar.svg` → `assets/MenuBarIcon.png`, embedded). A team's
+//! build can bring its own: `MenuBarIcon.png` in its brand folder, which `scripts/bundle.sh` copies
+//! into the app's Resources.
+//!
+//! Only the image's opacity counts: macOS tints a template image like the icons beside it (Windows
+//! whitens it, `app.rs`). The menu bar shows it 18 pt high, so 72 px for 4 px per point.
 
-/// Voice bars in points: height of each, centred on the image's middle, with rounded ends. 16 pt
-/// wide and 15 pt tall at most: bars with air between them look smaller than the filled glyphs
-/// beside them (16 pt), so they are not drawn any smaller.
-const BARS: [f32; 5] = [4.0, 10.0, 15.0, 8.5, 4.5];
-const BAR_W: f32 = 2.0;
-const BAR_GAP: f32 = 1.5;
+/// The built-in image (`assets/menubar.svg`, rendered as the "Icon" line of `AGENTS.md` says).
+const DEFAULT: &[u8] = include_bytes!("../assets/MenuBarIcon.png");
 
-/// Pixels per point and supersampling.
-const SCALE: f32 = 4.0;
-const SUPER: u32 = 4;
-/// The menu bar shows the image 18 pt high; a margin of 0.5 pt left and right.
-const HEIGHT_PT: f32 = 18.0;
-const MARGIN_PT: f32 = 0.5;
+/// A brand's file in `Dictate.app/Contents/Resources` (or next to the executable elsewhere).
+const BRAND_FILE: &str = "MenuBarIcon.png";
 
-/// The bars' total width in points.
-fn bars_width() -> f32 {
-    BARS.len() as f32 * BAR_W + (BARS.len() - 1) as f32 * BAR_GAP
-}
-
-/// RGBA pixels, width, height.
+/// RGBA pixels, width, height: the brand's image if the app has one, else the built-in one.
 pub fn render() -> (Vec<u8>, u32, u32) {
-    let height = (HEIGHT_PT * SCALE) as u32;
-    let width = ((bars_width() + 2.0 * MARGIN_PT) * SCALE).ceil() as u32;
-    let ox = (width as f32 / SCALE - bars_width()) / 2.0;
-    let mut rgba = Vec::with_capacity((width * height * 4) as usize);
-    for py in 0..height {
-        for px in 0..width {
-            let mut sum = 0.0;
-            for sy in 0..SUPER {
-                for sx in 0..SUPER {
-                    // Pixel sample → points, x from the first bar's left edge.
-                    let x = (px as f32 + (sx as f32 + 0.5) / SUPER as f32) / SCALE - ox;
-                    let y = (py as f32 + (sy as f32 + 0.5) / SUPER as f32) / SCALE;
-                    sum += sample(x, y);
-                }
-            }
-            let alpha = sum / (SUPER * SUPER) as f32;
-            rgba.extend_from_slice(&[0, 0, 0, (alpha * 255.0).round() as u8]);
-        }
-    }
-    (rgba, width, height)
+    brand().unwrap_or_else(|| decode(DEFAULT).expect("assets/MenuBarIcon.png"))
 }
 
-/// The brand's menu bar image, if the app has one: `MenuBarIcon.png` in
-/// `Dictate.app/Contents/Resources` (or next to the executable elsewhere). Only its opacity
-/// counts, like the glyph's: drawn black on macOS (a template image, so the menu bar tints it).
-/// 18 pt high in the menu bar, so 72 px for the glyph's 4 px per point. `None` without one, or
-/// when it does not decode (logged).
-pub fn brand() -> Option<(Vec<u8>, u32, u32)> {
+/// The brand's image; `None` without one, or when it does not decode (logged).
+fn brand() -> Option<(Vec<u8>, u32, u32)> {
     let exe = std::env::current_exe()
         .and_then(|e| e.canonicalize())
         .ok()?;
@@ -67,15 +35,13 @@ pub fn brand() -> Option<(Vec<u8>, u32, u32)> {
         Ok(image) => Some(image),
         Err(e) => {
             eprintln!(
-                "menu bar image {}: {e:#}; the voice bars instead",
+                "menu bar image {}: {e:#}; the built-in one instead",
                 path.display()
             );
             None
         }
     }
 }
-
-const BRAND_FILE: &str = "MenuBarIcon.png";
 
 /// A PNG as black pixels with its opacity (RGBA, width, height).
 fn decode(bytes: &[u8]) -> anyhow::Result<(Vec<u8>, u32, u32)> {
@@ -107,51 +73,23 @@ fn decode(bytes: &[u8]) -> anyhow::Result<(Vec<u8>, u32, u32)> {
     Ok((rgba, width, height))
 }
 
-/// Opacity at one point: 1 inside a bar, else 0.
-fn sample(x: f32, y: f32) -> f32 {
-    let hit = BARS.iter().enumerate().any(|(i, &h)| {
-        let left = i as f32 * (BAR_W + BAR_GAP);
-        in_bar(x, y, left, h)
-    });
-    if hit { 1.0 } else { 0.0 }
-}
-
-/// Point in a vertical bar with fully rounded ends, centred on the image's middle.
-fn in_bar(x: f32, y: f32, left: f32, height: f32) -> bool {
-    let r = BAR_W / 2.0;
-    let cx = left + r;
-    let cy_mid = HEIGHT_PT / 2.0;
-    let (top, bottom) = (cy_mid - height / 2.0 + r, cy_mid + height / 2.0 - r);
-    let cy = y.clamp(top, bottom);
-    (x - cx).hypot(y - cy) <= r
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn glyph_is_menu_bar_sized_bars() {
-        let (rgba, w, h) = render();
-        assert_eq!(h, 72);
-        // About 16 pt wide, like the icons beside it in the menu bar.
-        assert!((64..=72).contains(&w), "width {w}");
+    fn built_in_image_is_menu_bar_sized() {
+        let (rgba, w, h) = decode(DEFAULT).unwrap();
+        assert_eq!(h, 72, "18 pt at 4 px per point");
+        // Mark and bars: wider than tall, but not a banner.
+        assert!((72..=120).contains(&w), "width {w}");
         assert_eq!(rgba.len(), (w * h * 4) as usize);
         let alphas: Vec<u8> = rgba.chunks(4).map(|p| p[3]).collect();
-        let at = |x: usize, y: usize| alphas[y * w as usize + x];
-        let mid = h as usize / 2;
-        // The middle (tallest) bar is solid at the centre and near its top; the short outer ones
-        // are not that tall.
-        assert_eq!(at(w as usize / 2, mid), 255, "middle bar");
-        let near_top = mid - (5.5 * SCALE) as usize;
-        assert_eq!(at(w as usize / 2, near_top), 255, "middle bar is tall");
-        let first = ((MARGIN_PT + BAR_W / 2.0) * SCALE) as usize;
-        assert_eq!(at(first, mid), 255, "first bar");
-        assert_eq!(at(first, near_top), 0, "first bar is short");
-        // Gaps between bars and the corners are transparent.
-        let gap = ((MARGIN_PT + BAR_W + BAR_GAP / 2.0) * SCALE) as usize;
-        assert_eq!(at(gap, mid), 0, "gap");
-        assert_eq!(alphas[0], 0);
+        assert_eq!(alphas[0], 0, "transparent corner");
+        assert!(
+            alphas.iter().filter(|&&a| a == 255).count() > 500,
+            "solid shapes"
+        );
     }
 
     fn png(color: png::ColorType, width: u32, height: u32, data: &[u8]) -> Vec<u8> {
@@ -168,7 +106,7 @@ mod tests {
     }
 
     #[test]
-    fn brand_image_keeps_only_its_opacity() {
+    fn image_keeps_only_its_opacity() {
         // Two pixels: white half-transparent, red opaque → black with the same opacity.
         let bytes = png(
             png::ColorType::Rgba,
@@ -183,15 +121,5 @@ mod tests {
         let (rgba, _, _) = decode(&png(png::ColorType::Grayscale, 1, 1, &[7])).unwrap();
         assert_eq!(rgba, [0, 0, 0, 255]);
         assert!(decode(b"not a png").is_err());
-    }
-
-    /// `DICTATE_GLYPH_RGBA=/tmp/glyph.rgba cargo test -- --ignored dump_glyph` writes the raw pixels.
-    #[test]
-    #[ignore]
-    fn dump_glyph() {
-        let (rgba, w, h) = render();
-        let path = std::env::var("DICTATE_GLYPH_RGBA").expect("DICTATE_GLYPH_RGBA");
-        std::fs::write(&path, rgba).unwrap();
-        println!("{w}x{h}");
     }
 }

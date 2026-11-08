@@ -141,7 +141,13 @@ No backend, no updater: Dictate is one binary in a signed `.app`, built and inst
   `~/Library/Application Support/dictate/models/`).
 - **Check after install:** `pgrep -lf Dictate.app` and the end of
   `~/Library/Application Support/dictate/dictate.log` ("model loaded", "microphone: …", "Bereit"/"Ready").
-- **Icon:** `assets/app-icon.svg` → `scripts/icon.sh` → `assets/AppIcon.icns` (commit both).
+- **Icon:** `assets/app-icon.svg` → `scripts/icon.sh` → `assets/AppIcon.icns` (commit both). The
+  menu bar's image: `assets/menubar.svg` (the same mark and bars drawn for 18 pt, black, only
+  opacity counts) → `assets/MenuBarIcon.png`, 72 px high, embedded by `src/glyph.rs`; render it
+  with a headless Chrome on a transparent background (`--default-background-color=00000000
+  --window-size=<width>,72 --screenshot=… file://…/menubar.svg`). Android's launcher icon is
+  the same drawing as vectors (`android/app/src/main/res/drawable/ic_launcher_*.xml`): change
+  all three together.
 
 ## Windows (beta)
 
@@ -182,7 +188,10 @@ what to try first: `docs/linux.md`.
   in features, no internal hosts, tools, customers, people, words or plans. What a team needs
   goes into its profile (or brand folder), kept in its own private team repo (`docs/teams.md`); a
   new kind of setting becomes a profile key here with a neutral default, the team's value stays in
-  its repo. When you work for such a team, its repo's `AGENTS.md` has the rest.
+  its repo. When you work for such a team, its repo's `AGENTS.md` has the rest. The one
+  exception is the maintainers' mark: the app's icons (Mac, menu bar, Android launcher) and the
+  README logo carry the SOLISTIQ mark, a trademark outside the MIT licence (`NOTICE.md`). Nothing
+  else of SOLISTIQ goes here.
 - **Changes come as pull requests**: work on a branch (in a fork without write access) and open a
   pull request against `main`; never commit or push to `main` directly. Only the maintainers push
   to `main`, and only when their own instructions say so (their team repo's `AGENTS.md`). Say in the
@@ -190,7 +199,7 @@ what to try first: `docs/linux.md`.
 - Other agents and services plug in (`agents/`, the profile), they are not built into `src/`.
 - Nothing team-specific in the code: names, hosts, tools, report targets, default words go into a
   profile (keys in `core/src/profile.rs`; the built-in `profiles/default.toml` stays neutral, a test
-  checks), bundle id, identity and icon into a brand folder. No real customer, contact or deal data
+  checks), bundle id, identity and a team's own icons into a brand folder. No real customer, contact or deal data
   in tests, mocks or fixtures: invent names (`example.com`).
 - Keep platform-specific code in `src/platform/` (`macos/`, `windows/`, one interface in
   `platform/mod.rs`); `core/` stays free of OS calls and macOS crates (`trigger.rs`, `hook.rs`

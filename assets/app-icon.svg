@@ -15,7 +15,15 @@
       <stop offset=".35" stop-color="#c0c7cb" stop-opacity=".08"/>
       <stop offset="1" stop-color="#8e989e" stop-opacity=".16"/>
     </linearGradient>
-    <linearGradient id="cursor" x1="0" y1="282" x2="0" y2="742" gradientUnits="userSpaceOnUse">
+    <!-- The SOLISTIQ mark's face shading. -->
+    <linearGradient id="face" x1="250" x2="550" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#fff"/>
+      <stop offset=".14" stop-color="#ecf0f1"/>
+      <stop offset=".41" stop-color="#bccbcf"/>
+      <stop offset=".79" stop-color="#6f8f99"/>
+      <stop offset="1" stop-color="#436d7a"/>
+    </linearGradient>
+    <linearGradient id="cursor" x1="0" y1="494" x2="0" y2="690" gradientUnits="userSpaceOnUse">
       <stop stop-color="#fff"/>
       <stop offset="1" stop-color="#dce1e4"/>
     </linearGradient>
@@ -28,10 +36,15 @@
   <use href="#shape" transform="translate(0 12)" fill="#000" opacity=".28" filter="url(#shadow)"/>
   <use href="#shape" fill="url(#tile)" stroke="url(#rim)" stroke-width="5"/>
   <use href="#shape" transform="translate(512 512) scale(.977) translate(-512 -512)" fill="none" stroke="url(#highlight)" stroke-width="3"/>
-  <!-- Voice level bars, the same as the menu bar glyph (src/glyph.rs). -->
-  <rect x="304" y="437" width="56" height="150" rx="28" fill="url(#cursor)"/>
-  <rect x="394" y="362" width="56" height="300" rx="28" fill="url(#cursor)"/>
-  <rect x="484" y="282" width="56" height="460" rx="28" fill="url(#cursor)"/>
-  <rect x="574" y="382" width="56" height="260" rx="28" fill="url(#cursor)"/>
-  <rect x="664" y="447" width="56" height="130" rx="28" fill="url(#cursor)"/>
+  <!-- The SOLISTIQ mark (a trademark, see NOTICE.md): keep its polygons intact. -->
+  <g transform="translate(280 290) scale(.86) translate(-250 -187.87)">
+    <path fill="#fff" d="M351.55 612.13 250 557.61V319.49L351.55 374zM549.99 602.39l-101.55-54.51V426.01l101.55 54.51zM550 420.1l-101.56-54.51V187.87L550 242.39z"/>
+    <path fill="url(#face)" d="m250 557.61 101.55 54.52 198.44-131.6-101.55-54.52zM250 319.49 351.55 374 550 242.39l-101.56-54.52z"/>
+  </g>
+  <!-- Voice level bars beside the mark. -->
+  <rect x="600" y="560" width="22" height="64" rx="11" fill="url(#cursor)"/>
+  <rect x="635" y="528" width="22" height="128" rx="11" fill="url(#cursor)"/>
+  <rect x="670" y="494" width="22" height="196" rx="11" fill="url(#cursor)"/>
+  <rect x="705" y="536" width="22" height="112" rx="11" fill="url(#cursor)"/>
+  <rect x="740" y="564" width="22" height="56" rx="11" fill="url(#cursor)"/>
 </svg>
