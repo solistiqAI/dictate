@@ -2031,9 +2031,9 @@ pub fn mic_check(duration: Duration) -> Result<f32, String> {
     Ok(clip.rms_db())
 }
 
-/// The voice bars, as a template image (src/glyph.rs).
+/// The voice bars (or the brand's menu bar image), as a template image (src/glyph.rs).
 fn brand_icon() -> Icon {
-    let (mut rgba, width, height) = crate::glyph::render();
+    let (mut rgba, width, height) = crate::glyph::brand().unwrap_or_else(crate::glyph::render);
     // Windows has no template images: white bars for the (usually dark) taskbar.
     if cfg!(windows) {
         for pixel in rgba.as_chunks_mut::<4>().0 {

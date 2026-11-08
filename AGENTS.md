@@ -129,7 +129,8 @@ No backend, no updater: Dictate is one binary in a signed `.app`, built and inst
   with LaunchServices, starts it and links the CLI as `~/.local/bin/dictate` (`DICTATE_BIN_DIR`). It
   restarts the app on the user's screen: only when the user asked for it.
 - **A team's build:** `DICTATE_BRAND=<folder>` gives bundle id, signing identity (`brand.env`), icon
-  (`AppIcon.icns`) and profile (`profile.toml`) to `bundle.sh`/`install.sh`. Without one: bundle id
+  (`AppIcon.icns`), menu bar image (`MenuBarIcon.png`, optional) and profile (`profile.toml`) to
+  `bundle.sh`/`install.sh`. Without one: bundle id
   `app.dictate`, `assets/AppIcon.icns`, `$DICTATE_SIGN_IDENTITY` or ad-hoc. An installed app with
   another bundle id keeps it (its permissions stay).
 - **Signing:** macOS ties Accessibility and Microphone to bundle id + identity: keep both stable or

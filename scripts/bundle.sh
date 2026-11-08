@@ -2,8 +2,9 @@
 # Builds target/Dictate.app: the menu bar app with its own microphone/Accessibility entries.
 #
 # A team's own build (bundle id, signing identity, icon) comes from a brand folder:
-# DICTATE_BRAND=<folder> with brand.env (sets DICTATE_BUNDLE_ID, DICTATE_SIGN_IDENTITY) and
-# AppIcon.icns. Without one: bundle id app.dictate, the icon in assets/, and signed with
+# DICTATE_BRAND=<folder> with brand.env (sets DICTATE_BUNDLE_ID, DICTATE_SIGN_IDENTITY),
+# AppIcon.icns and, if it likes, MenuBarIcon.png (the menu bar's image instead of the voice bars:
+# black on transparent, 72 px high; src/glyph.rs). Without one: bundle id app.dictate, the icon in assets/, and signed with
 # $DICTATE_SIGN_IDENTITY when set, else ad-hoc. macOS ties the Microphone and Accessibility
 # permissions to bundle id + identity: a stable identity keeps them across rebuilds, ad-hoc loses
 # them on every build.
@@ -11,9 +12,11 @@ set -eu
 if [ -n "${DICTATE_BRAND:-}" ]; then DICTATE_BRAND=$(cd "$DICTATE_BRAND" && pwd); export DICTATE_BRAND; fi
 cd "$(dirname "$0")/.."
 icon=assets/AppIcon.icns
+menu_bar_icon=
 if [ -n "${DICTATE_BRAND:-}" ]; then
   [ -f "$DICTATE_BRAND/brand.env" ] && . "$DICTATE_BRAND/brand.env"
   [ -f "$DICTATE_BRAND/AppIcon.icns" ] && icon="$DICTATE_BRAND/AppIcon.icns"
+  [ -f "$DICTATE_BRAND/MenuBarIcon.png" ] && menu_bar_icon="$DICTATE_BRAND/MenuBarIcon.png"
 fi
 bundle_id=${DICTATE_BUNDLE_ID:-app.dictate}
 # The main window's page (ui/, Svelte) is built first; build.rs embeds ui/dist into the binary.
@@ -36,6 +39,7 @@ mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
 cp target/release/dictate "$app/Contents/MacOS/dictate"
 cp ane/.build/release/dictate-ane "$app/Contents/MacOS/dictate-ane"
 cp "$icon" "$app/Contents/Resources/AppIcon.icns"   # from scripts/icon.sh
+[ -z "$menu_bar_icon" ] || cp "$menu_bar_icon" "$app/Contents/Resources/MenuBarIcon.png"
 cat > "$app/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">

@@ -22,6 +22,8 @@ dictate-core = { path = "core" }
 dirs = "7.0.0"
 hound = "3.5.1"
 libc = "0.2.191"
+# A brand's menu bar image (`glyph.rs`); already in the tree through tray-icon.
+png = "0.18"
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.154"
 tao = "0.37"

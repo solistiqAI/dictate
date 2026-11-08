@@ -8,6 +8,7 @@ your-org/dictate-team/        private
   profile.toml                the team's profile: words, report target, Souffleur, web pages
   brand.env                   bundle id and signing identity of your build
   AppIcon.icns, app-icon.svg  your icon (optional)
+  MenuBarIcon.png             your mark in the menu bar instead of the voice bars (optional)
   install.sh                  builds and installs your build from the app checkout
   AGENTS.md                   how your people and agents deploy and read the reports (optional)
 ```
@@ -67,6 +68,9 @@ DICTATE_SIGN_IDENTITY="Example Code Signing"   # a codesigning identity in each 
 
 macOS ties Accessibility and the microphone to bundle id and identity: keep both stable, or every
 Mac grants them again. Icon: `scripts/icon.sh app-icon.svg AppIcon.icns` in the app checkout.
+Menu bar: `MenuBarIcon.png`, black on transparent and 72 px high (the menu bar shows it 18 pt
+high and tints it like the icons beside it; only its opacity counts). Without it the menu bar
+shows the voice bars.
 
 `install.sh`:
 
