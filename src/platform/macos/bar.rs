@@ -9,6 +9,8 @@ use std::cell::{Cell, RefCell};
 
 use objc2::rc::Retained;
 
+use super::glass::Hud;
+
 use crate::bar::{DICTATE, PANEL, SETTINGS, SOUFFLEUR, STOP, elapsed};
 use crate::text;
 use objc2::runtime::AnyObject;
@@ -17,8 +19,7 @@ use objc2_app_kit::{
     NSAppearance, NSAppearanceCustomization, NSAppearanceNameDarkAqua, NSBackingStoreType,
     NSBezelStyle, NSBitmapImageFileType, NSBox, NSBoxType, NSButton, NSColor, NSControl,
     NSControlSize, NSFont, NSPanel, NSScreen, NSStatusWindowLevel, NSTextAlignment, NSTextField,
-    NSTitlePosition, NSView, NSVisualEffectBlendingMode, NSVisualEffectMaterial,
-    NSVisualEffectState, NSVisualEffectView, NSWindowCollectionBehavior, NSWindowStyleMask,
+    NSTitlePosition, NSView, NSWindowCollectionBehavior, NSWindowStyleMask,
 };
 use objc2_foundation::{
     NSDictionary, NSObject, NSObjectProtocol, NSPoint, NSRect, NSSize, NSString,
@@ -61,7 +62,7 @@ impl Target {
 
 pub struct Bar {
     panel: Retained<NSPanel>,
-    pill: Retained<NSVisualEffectView>,
+    pill: Hud,
     dot: Retained<NSBox>,
     time: Retained<NSTextField>,
     buttons: Vec<Retained<NSButton>>,
@@ -105,17 +106,17 @@ impl Bar {
         unsafe { panel.setReleasedWhenClosed(false) };
 
         let root = NSView::initWithFrame(NSView::alloc(mtm), frame);
-        let pill = hud(mtm);
+        let pill = Hud::new(mtm, ROW_H / 2.0, true);
         let red = NSColor::systemRedColor();
         let dot = filled_box(mtm, &red, 3.5);
-        pill.addSubview(&dot);
+        pill.content.addSubview(&dot);
         let time = NSTextField::labelWithString(&NSString::from_str(""), mtm);
         time.setFont(Some(&NSFont::monospacedDigitSystemFontOfSize_weight(
             12.0, 0.23,
         )));
         time.setTextColor(Some(&NSColor::whiteColor()));
         time.setAlignment(NSTextAlignment::Left);
-        pill.addSubview(&time);
+        pill.content.addSubview(&time);
 
         let target = Target::new(mtm, Box::new(on_click));
         let buttons = (0..3)
@@ -131,11 +132,11 @@ impl Bar {
                 b.setBezelStyle(NSBezelStyle::AccessoryBarAction);
                 b.setControlSize(NSControlSize::Small);
                 b.setFont(Some(&NSFont::systemFontOfSize_weight(12.0, 0.23)));
-                pill.addSubview(&b);
+                pill.content.addSubview(&b);
                 b
             })
             .collect();
-        root.addSubview(&pill);
+        root.addSubview(&pill.view);
         panel.setContentView(Some(&root));
         Bar {
             panel,
@@ -237,11 +238,9 @@ impl Bar {
             x += w + SPACING;
         }
         let size = NSSize::new(x - SPACING + PAD, ROW_H);
-        if let Some(layer) = self.pill.layer() {
-            layer.setCornerRadius(ROW_H / 2.0);
-        }
+        self.pill.set_radius(ROW_H / 2.0);
         self.pill
-            .setFrame(NSRect::new(NSPoint::new(0.0, 0.0), size));
+            .set_frame(NSRect::new(NSPoint::new(0.0, 0.0), size));
         self.dot.setHidden(!running);
         self.time.setHidden(!running);
         self.dot.setFrame(NSRect::new(
@@ -292,20 +291,6 @@ fn now_unix() -> i64 {
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_secs() as i64)
         .unwrap_or_default()
-}
-
-fn hud(mtm: MainThreadMarker) -> Retained<NSVisualEffectView> {
-    let view = NSVisualEffectView::new(mtm);
-    view.setMaterial(NSVisualEffectMaterial::HUDWindow);
-    view.setBlendingMode(NSVisualEffectBlendingMode::BehindWindow);
-    view.setState(NSVisualEffectState::Active);
-    view.setWantsLayer(true);
-    if let Some(layer) = view.layer() {
-        layer.setMasksToBounds(true);
-        layer.setBorderWidth(0.5);
-        layer.setBorderColor(Some(&NSColor::colorWithWhite_alpha(1.0, 0.18).CGColor()));
-    }
-    view
 }
 
 fn filled_box(mtm: MainThreadMarker, color: &NSColor, radius: f64) -> Retained<NSBox> {

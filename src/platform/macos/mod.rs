@@ -4,6 +4,7 @@
 
 pub mod ane;
 pub mod bar;
+mod glass;
 pub mod media;
 pub mod overlay;
 pub mod pocket;
@@ -948,9 +949,11 @@ pub fn set_app_menu(menu: tray_icon::menu::Menu) {
     std::mem::forget(menu);
 }
 
-/// For the previews: an accessory app on the main thread, so AppKit views can be drawn.
+/// For the previews: an accessory app on the main thread, so AppKit views can be drawn. They
+/// draw the HUD material: Liquid Glass is composited on screen only, a PNG of it stays empty.
 pub fn preview_app() -> Result<MainThreadMarker> {
     let mtm = MainThreadMarker::new().ok_or_else(|| anyhow!("not on the main thread"))?;
+    glass::without_glass();
     let app = objc2_app_kit::NSApplication::sharedApplication(mtm);
     app.setActivationPolicy(objc2_app_kit::NSApplicationActivationPolicy::Accessory);
     Ok(mtm)

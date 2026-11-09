@@ -6,17 +6,19 @@
 
 use objc2::rc::Retained;
 
+use super::glass::Hud;
+
 use crate::overlay::{
     Left, MAX_LINES, SETTINGS, SHOWN_CHARS, SOUFFLEUR, WAITING, bar_height, lines_for, tail_marked,
 };
 use objc2::runtime::AnyObject;
 use objc2::{DefinedClass, MainThreadMarker, MainThreadOnly, define_class, msg_send, sel};
 use objc2_app_kit::{
-    NSBackingStoreType, NSBitmapImageFileType, NSBox, NSBoxType, NSButton, NSCellImagePosition,
-    NSColor, NSControl, NSFont, NSFontWeightMedium, NSImage, NSImageSymbolConfiguration,
-    NSLineBreakMode, NSPanel, NSScreen, NSStatusWindowLevel, NSTextAlignment, NSTextField,
-    NSTitlePosition, NSView, NSVisualEffectBlendingMode, NSVisualEffectMaterial,
-    NSVisualEffectState, NSVisualEffectView, NSWindowCollectionBehavior, NSWindowStyleMask,
+    NSAppearance, NSAppearanceCustomization, NSAppearanceNameDarkAqua, NSBackingStoreType,
+    NSBitmapImageFileType, NSBox, NSBoxType, NSButton, NSCellImagePosition, NSColor, NSControl,
+    NSFont, NSFontWeightMedium, NSImage, NSImageSymbolConfiguration, NSLineBreakMode, NSPanel,
+    NSScreen, NSStatusWindowLevel, NSTextAlignment, NSTextField, NSTitlePosition, NSView,
+    NSWindowCollectionBehavior, NSWindowStyleMask,
 };
 use objc2_foundation::{
     NSDictionary, NSMutableAttributedString, NSNumber, NSObject, NSObjectProtocol, NSPoint,
@@ -68,15 +70,15 @@ impl Target {
 
 pub struct Overlay {
     panel: Retained<NSPanel>,
-    card: Retained<NSVisualEffectView>,
+    card: Hud,
     text: Retained<NSTextField>,
     buttons: Vec<Retained<NSButton>>,
-    pill: Retained<NSVisualEffectView>,
+    pill: Hud,
     dot: Retained<NSBox>,
     bars: Vec<Retained<NSBox>>,
     badge: Retained<NSTextField>,
     /// "Einstellungen" left of the pill, "Souffleur" right of it (capsule, button).
-    sides: [(Retained<NSVisualEffectView>, Retained<NSButton>); 2],
+    sides: [(Hud, Retained<NSButton>); 2],
     shortcuts: std::cell::Cell<bool>,
     /// The running Souffleur's time ("12:03"), shown on its capsule.
     meeting: std::cell::RefCell<Option<String>>,
@@ -108,14 +110,18 @@ impl Overlay {
                 | NSWindowCollectionBehavior::Stationary
                 | NSWindowCollectionBehavior::IgnoresCycle,
         );
+        // Dark like the HUD material always was: the glass follows the panel's appearance.
+        if let Some(dark) = NSAppearance::appearanceNamed(unsafe { NSAppearanceNameDarkAqua }) {
+            panel.setAppearance(Some(&dark));
+        }
         unsafe { panel.setReleasedWhenClosed(false) };
 
         let root = NSView::initWithFrame(NSView::alloc(mtm), frame);
-        let card = hud(mtm, 16.0);
+        let card = Hud::new(mtm, 16.0, false);
         let text = label(mtm, 15.0);
         text.setLineBreakMode(NSLineBreakMode::ByWordWrapping);
         text.setMaximumNumberOfLines(MAX_LINES as isize);
-        card.addSubview(&text);
+        card.content.addSubview(&text);
 
         let target = Target::new(mtm, Box::new(on_click));
         let button = |title: &str, tag: isize| {
@@ -128,23 +134,23 @@ impl Overlay {
                 )
             };
             b.setTag(tag);
-            card.addSubview(&b);
+            card.content.addSubview(&b);
             b
         };
         let buttons = (0..BUTTONS).map(|_| button("", 0)).collect();
 
-        let pill = hud(mtm, PILL_H / 2.0);
+        let pill = Hud::new(mtm, PILL_H / 2.0, false);
         let red = NSColor::systemRedColor();
         let dot = filled_box(mtm, &red, 4.5);
         dot.setFrame(NSRect::new(
             NSPoint::new(22.0, PILL_H / 2.0 - 4.5),
             NSSize::new(9.0, 9.0),
         ));
-        pill.addSubview(&dot);
+        pill.content.addSubview(&dot);
         let bars: Vec<_> = (0..BARS)
             .map(|_| {
                 let bar = filled_box(mtm, &red, 1.5);
-                pill.addSubview(&bar);
+                pill.content.addSubview(&bar);
                 bar
             })
             .collect();
@@ -154,10 +160,10 @@ impl Overlay {
             NSPoint::new(10.0, 11.0),
             NSSize::new(PILL_W - 20.0, 18.0),
         ));
-        pill.addSubview(&badge);
+        pill.content.addSubview(&badge);
 
         let side = |title: &str, symbol: &str, tag: isize| {
-            let capsule = hud(mtm, SIDE_H / 2.0);
+            let capsule = Hud::new(mtm, SIDE_H / 2.0, false);
             let b = unsafe {
                 NSButton::buttonWithTitle_target_action(
                     &NSString::from_str(""),
@@ -188,8 +194,8 @@ impl Overlay {
                 11.0,
                 unsafe { NSFontWeightMedium },
             )));
-            capsule.addSubview(&b);
-            root.addSubview(&capsule);
+            capsule.content.addSubview(&b);
+            root.addSubview(&capsule.view);
             (capsule, b)
         };
         let sides = [
@@ -197,8 +203,8 @@ impl Overlay {
             side("Souffleur", "text.bubble", SOUFFLEUR),
         ];
 
-        root.addSubview(&card);
-        root.addSubview(&pill);
+        root.addSubview(&card.view);
+        root.addSubview(&pill.view);
         panel.setContentView(Some(&root));
         Overlay {
             panel,
@@ -345,12 +351,12 @@ impl Overlay {
         };
         let height = card_h + if card_h > 0.0 { GAP } else { 0.0 } + PILL_H;
 
-        self.pill.setFrame(NSRect::new(
+        self.pill.set_frame(NSRect::new(
             NSPoint::new((WIDTH - PILL_W) / 2.0, 0.0),
             NSSize::new(PILL_W, PILL_H),
         ));
-        self.card.setHidden(card_h == 0.0);
-        self.card.setFrame(NSRect::new(
+        self.card.view.setHidden(card_h == 0.0);
+        self.card.set_frame(NSRect::new(
             NSPoint::new(0.0, PILL_H + GAP),
             NSSize::new(WIDTH, card_h.max(1.0)),
         ));
@@ -382,7 +388,7 @@ impl Overlay {
         self.sides[1].1.setTitle(&NSString::from_str(&time));
         let pill_x = (WIDTH - PILL_W) / 2.0;
         for (i, (capsule, button)) in self.sides.iter().enumerate() {
-            capsule.setHidden(!on);
+            capsule.view.setHidden(!on);
             if !on {
                 continue;
             }
@@ -404,7 +410,7 @@ impl Overlay {
                 pill_x + PILL_W + SIDE_GAP
             };
             let y = (PILL_H - SIDE_H) / 2.0;
-            capsule.setFrame(NSRect::new(NSPoint::new(x, y), NSSize::new(w, SIDE_H)));
+            capsule.set_frame(NSRect::new(NSPoint::new(x, y), NSSize::new(w, SIDE_H)));
             button.setFrame(NSRect::new(NSPoint::new(0.0, 0.0), NSSize::new(w, SIDE_H)));
         }
 
@@ -457,19 +463,6 @@ fn marked(
         }
     }
     string
-}
-
-fn hud(mtm: MainThreadMarker, radius: f64) -> Retained<NSVisualEffectView> {
-    let view = NSVisualEffectView::new(mtm);
-    view.setMaterial(NSVisualEffectMaterial::HUDWindow);
-    view.setBlendingMode(NSVisualEffectBlendingMode::BehindWindow);
-    view.setState(NSVisualEffectState::Active);
-    view.setWantsLayer(true);
-    if let Some(layer) = view.layer() {
-        layer.setCornerRadius(radius);
-        layer.setMasksToBounds(true);
-    }
-    view
 }
 
 fn filled_box(mtm: MainThreadMarker, color: &NSColor, radius: f64) -> Retained<NSBox> {
