@@ -29,6 +29,8 @@ pub fn shown(text: &str) -> &str {
 pub const COPY: isize = 1;
 pub const CLOSE: isize = 2;
 pub const UNDO: isize = 3;
+/// Learn a correction the overlay asked about.
+pub const REMEMBER: isize = 4;
 /// The shortcuts beside the pill while recording.
 pub const SETTINGS: isize = 10;
 pub const SOUFFLEUR: isize = 11;

@@ -52,6 +52,8 @@ const LIVE_EVERY: Duration = Duration::from_millis(600);
 const LEARN_WATCH: Duration = Duration::from_secs(30);
 const LEARN_SETTLE: Duration = Duration::from_secs(3);
 const LEARN_STAYS: Duration = Duration::from_secs(8);
+/// How long the question for a correction with another first sound stays.
+const LEARN_ASK_STAYS: Duration = Duration::from_secs(12);
 /// Live text stops for longer recordings (each pass re-reads everything); the final text still comes.
 const LIVE_MAX_SECONDS: f32 = 90.0;
 
@@ -83,8 +85,12 @@ enum Ui {
     Meeting(meeting::Update),
     /// A button on the overlay card (`overlay::COPY`, `overlay::CLOSE`, …).
     OverlayClick(isize),
-    /// Corrections the user made in the text field after a paste.
-    Learn(Vec<Candidate>),
+    /// Corrections the user made in the text field after a paste: `sure` ones are learned at
+    /// once, `ask` ones (another first sound) when the user clicks "Merken".
+    Learn {
+        sure: Vec<Candidate>,
+        ask: Vec<Candidate>,
+    },
     /// A button on the bar at the bottom (`bar::DICTATE`, …).
     BarClick(isize),
     /// The trigger pressed after "Ändern…" in the window.
@@ -215,6 +221,8 @@ pub fn run(settings: Settings) -> Result<()> {
     // What the last learned correction replaced, for "Rückgängig": the settings and, when the
     // replacements file changed, its old text.
     let mut undo: Option<(Config, Option<String>)> = None;
+    // Corrections the overlay asks about ("Merken"), until the next one.
+    let mut offered: Vec<Candidate> = Vec::new();
     let data = asr::data_dir();
     let mut history = History::load(
         &data.join("history.jsonl"),
@@ -503,17 +511,52 @@ pub fn run(settings: Settings) -> Result<()> {
                         o.show(mtm, Left::Symbol(&note), "", &[]);
                         hide_overlay_at = Some(Instant::now() + Duration::from_millis(1200));
                     }
+                    overlay::REMEMBER => {
+                        let chosen = std::mem::take(&mut offered);
+                        match chosen.is_empty() {
+                            true => o.hide(),
+                            false => {
+                                eprintln!(
+                                    "learn: {} correction(s) learned on request",
+                                    chosen.len()
+                                );
+                                let _ = proxy.send_event(Ui::Learn {
+                                    sure: chosen,
+                                    ask: Vec::new(),
+                                });
+                            }
+                        }
+                    }
                     _ => {
                         o.hide();
                         hide_overlay_at = None;
                     }
                 }
             }
-            Event::UserEvent(Ui::Learn(candidates)) => {
+            Event::UserEvent(Ui::Learn {
+                sure: candidates,
+                ask,
+            }) => {
                 let Some(o) = &overlay else { return };
                 let Some(first) = candidates.first() else {
+                    // Only doubtful ones: the overlay asks, nothing is learned unless clicked.
+                    let Some(first) = ask.first() else { return };
+                    let more = text::more_corrections(ask.len() - 1);
+                    o.show(
+                        mtm,
+                        Left::Symbol(text::remember_question()),
+                        &format!("{}{more}", first.describe()),
+                        &[(text::remember(), overlay::REMEMBER)],
+                    );
+                    offered = ask;
+                    hide_overlay_at = Some(Instant::now() + LEARN_ASK_STAYS);
+                    *control_flow = ControlFlow::WaitUntil(hide_overlay_at.unwrap());
                     return;
                 };
+                // Learned at once; a doubtful one beside them is only in the log.
+                for c in &ask {
+                    eprintln!("learn: not asked (learned others): {}", c.describe());
+                }
                 let more = text::more_corrections(candidates.len() - 1);
                 // Learned right away; "Rückgängig" for the rare wrong guess.
                 match remember(&candidates, &config, &replacements_path) {
@@ -1811,8 +1854,10 @@ static WATCH: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0
 /// Watches the field after a paste for up to [`LEARN_WATCH`], until the focus moves or the next
 /// paste. Once the pasted text has stayed the same for [`LEARN_SETTLE`] (still focused) and differs
 /// from the transcript in a few words that sound alike (a mishearing, not a rewording), those
-/// corrections are learned and the overlay says so, with "Rückgängig". Only the pasted
-/// stretch is compared; nothing of the field is logged or kept.
+/// corrections are learned and the overlay says so, with "Rückgängig"; close ones that begin with
+/// another sound ("Radman" → "Admin") are offered with "Merken". Only the pasted stretch is
+/// compared; the log says which of its changes were not learned and why, nothing else of the field
+/// is logged or kept.
 fn watch_corrections(
     field: platform::Field,
     pasted: String,
@@ -1824,42 +1869,84 @@ fn watch_corrections(
         let started = Instant::now();
         let mut last: Option<String> = None;
         let mut since = Instant::now();
+        // The last region looked at, so a settled one is checked (and logged) once.
+        let mut checked: Option<String> = None;
+        // Why watching ended with an edit not looked at.
+        let mut outside = false;
+        let mut cleared = false;
         let offer = |region: &str| {
-            let found: Vec<Candidate> = learn::candidates(pasted.trim(), region.trim(), &words)
-                .into_iter()
-                .filter(|c| learn::sounds_alike(&c.heard, &c.meant))
-                .collect();
-            if found.is_empty() {
+            let review = learn::review(pasted.trim(), region.trim(), &words);
+            for why in &review.skipped {
+                eprintln!("learn: not learned: {why}");
+            }
+            if review.sure.is_empty() && review.ask.is_empty() {
                 return false;
             }
-            eprintln!("learn: {} correction(s) learned", found.len());
-            let _ = ui.send_event(Ui::Learn(found));
+            if !review.sure.is_empty() {
+                eprintln!("learn: {} correction(s) learned", review.sure.len());
+            }
+            for c in &review.ask {
+                eprintln!("learn: asking, another first sound: {}", c.describe());
+            }
+            let _ = ui.send_event(Ui::Learn {
+                sure: review.sure,
+                ask: review.ask,
+            });
             true
         };
         let mut misses = 0;
+        let mut gone = false;
         while started.elapsed() < LEARN_WATCH && WATCH.load(Ordering::Relaxed) == generation {
             std::thread::sleep(Duration::from_millis(700));
             // Focus moved on (or a few failed reads in a row): the user is done with this text.
             let Some(now) = field.current_text() else {
                 misses += 1;
                 if misses >= 3 {
+                    gone = true;
                     break;
                 }
                 continue;
             };
             misses = 0;
             let Some(region) = learn::pasted_region(&field.text, field.at, &now) else {
+                outside = true;
                 continue; // changed outside the pasted text
             };
+            outside = false;
+            // Sent or emptied: nothing to compare.
+            cleared = region.trim().is_empty();
+            if cleared {
+                continue;
+            }
             if last.as_deref() != Some(region) {
                 last = Some(region.to_string());
                 since = Instant::now();
-            } else if since.elapsed() >= LEARN_SETTLE && offer(region) {
-                return;
+            } else if since.elapsed() >= LEARN_SETTLE && checked.as_deref() != Some(region) {
+                checked = Some(region.to_string());
+                if offer(region) {
+                    return;
+                }
             }
         }
-        // Nothing offered at the end: an unsettled region may be a half-typed word, and after
-        // a focus change the user is on to the next thing.
+        // An edit never looked at: an unsettled region may be a half-typed word, and after a
+        // focus change the user is on to the next thing. The log says why.
+        let edited = last
+            .as_deref()
+            .is_some_and(|r| r.trim() != pasted.trim() && checked.as_deref() != Some(r));
+        if edited {
+            let why = if cleared {
+                "the text was sent or cleared before it stood still for 3 s"
+            } else if outside {
+                "the field changed outside the pasted text too"
+            } else if gone {
+                "the focus moved before the text stood still for 3 s"
+            } else if WATCH.load(Ordering::Relaxed) != generation {
+                "the next dictation came first"
+            } else {
+                "still being edited 30 s after the paste"
+            };
+            eprintln!("learn: not learned: {why}");
+        }
     });
 }
 

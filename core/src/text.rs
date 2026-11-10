@@ -139,6 +139,8 @@ texts! {
     undo => "Rückgängig", "Undo";
     undone => "Rückgängig ✓", "Undone ✓";
     learned => "Gelernt", "Learned";
+    remember_question => "Merken?", "Remember?";
+    remember => "Merken", "Remember";
     settings => "Einstellungen", "Settings";
 
     // The bar at the bottom of the screen.

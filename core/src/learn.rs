@@ -33,15 +33,55 @@ impl Candidate {
 /// The misheard words between a transcript and its corrected version. `vocabulary` decides
 /// between dictionary and replacement: a word the dictionary would catch by sound goes there.
 pub fn candidates<S: AsRef<str>>(old: &str, new: &str, vocabulary: &[S]) -> Vec<Candidate> {
+    sorted(old, new, vocabulary).0
+}
+
+/// What watching a field found: corrections to learn, ones to ask about, and why the other
+/// changes were left alone (for the log).
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct Review {
+    /// Mishearings ("deckläuen" → "deployen"): learned right away.
+    pub sure: Vec<Candidate>,
+    /// Close, but beginning with another sound ("Radman" → "Admin"): learned when the user says so.
+    pub ask: Vec<Candidate>,
+    /// „heard“ → „meant“ and why it is not learned.
+    pub skipped: Vec<String>,
+}
+
+/// A transcript against what the user made of it in the field.
+pub fn review<S: AsRef<str>>(old: &str, new: &str, vocabulary: &[S]) -> Review {
+    let (found, mut skipped) = sorted(old, new, vocabulary);
+    let mut review = Review::default();
+    for c in found {
+        match doubt(&c.heard, &c.meant) {
+            None => review.sure.push(c),
+            Some(Doubt::FirstSound) => review.ask.push(c),
+            Some(Doubt::TooDifferent) => {
+                skipped.push(format!("{}: too different, a rewording", c.describe()))
+            }
+        }
+    }
+    review.skipped = skipped;
+    review
+}
+
+/// The candidates, and the changes that are none, with why.
+fn sorted<S: AsRef<str>>(old: &str, new: &str, vocabulary: &[S]) -> (Vec<Candidate>, Vec<String>) {
     let old: Vec<&str> = old.split_whitespace().collect();
     let new: Vec<&str> = new.split_whitespace().collect();
     let mut out: Vec<Candidate> = Vec::new();
+    let mut skipped = Vec::new();
     for (heard, meant) in changes(&old, &new) {
-        if heard.is_empty()
-            || meant.is_empty()
-            || heard.len() > MAX_WORDS
-            || meant.len() > MAX_WORDS
-        {
+        let change = || crate::text::quoted_change(&heard.join(" "), &meant.join(" "));
+        if heard.is_empty() || meant.is_empty() {
+            skipped.push(format!("{}: words added or removed only", change()));
+            continue;
+        }
+        if heard.len() > MAX_WORDS || meant.len() > MAX_WORDS {
+            skipped.push(format!(
+                "{}: more than {MAX_WORDS} words, a rewording",
+                change()
+            ));
             continue;
         }
         let heard = phrase(heard);
@@ -53,27 +93,65 @@ pub fn candidates<S: AsRef<str>>(old: &str, new: &str, vocabulary: &[S]) -> Vec<
         // The replacements file reads "," as a list, "#" as a comment and "=>" as the arrow.
         let unsafe_rule = |s: &str| s.contains(',') || s.contains('#') || s.contains("=>");
         if unsafe_rule(&heard) || unsafe_rule(&meant) {
+            skipped.push(format!("{}: has , # or =>", change()));
             continue;
         }
         if out.iter().any(|c| c.heard == heard && c.meant == meant) {
             continue;
         }
-        let kind = suggest(&heard, &meant, vocabulary);
+        let kind = match suggest(&heard, &meant, vocabulary) {
+            // "Dry fliegen" → "drive liegen": a rule for these words, not a dictionary entry
+            // that the decoder would push into every sentence.
+            Kind::Dictionary if !term(&meant) => Kind::Replacement,
+            kind => kind,
+        };
         out.push(Candidate { heard, meant, kind });
     }
-    out
+    (out, skipped)
 }
 
-/// Whether a correction looks like a mishearing ("deckläuen" → "deployen", "Solis tick" →
-/// SOLISTIQ) rather than a rewording ("gut" → "super", "Montag" → "Dienstag"): same first sound
-/// and at most two edits in five on the sound keys. Only these are learned without asking.
-pub fn sounds_alike(heard: &str, meant: &str) -> bool {
+/// Whether a phrase is a name or term for the dictionary: one word, or words that each carry a
+/// capital or a digit ("Server Prod", "Pull Request", "M5 Pro"), not ordinary words ("drive liegen").
+pub fn term(phrase: &str) -> bool {
+    let words: Vec<&str> = phrase.split_whitespace().collect();
+    words.len() <= 1
+        || words
+            .iter()
+            .all(|w| w.chars().any(|c| c.is_uppercase() || c.is_ascii_digit()))
+}
+
+/// Why a correction is not learned without asking.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Doubt {
+    /// Close, but another first sound ("Radman" → "Admin"): misheard or reworded, the user knows.
+    FirstSound,
+    /// Too many sounds differ ("Montag" → "Dienstag"): a rewording.
+    TooDifferent,
+}
+
+/// `None` when a correction looks like a mishearing ("deckläuen" → "deployen", "Solis tick" →
+/// SOLISTIQ): same first sound and at most two edits in five on the sound keys.
+pub fn doubt(heard: &str, meant: &str) -> Option<Doubt> {
     let (a, b) = (sound_key(heard), sound_key(meant));
-    if a.is_empty() || b.is_empty() || a.chars().next() != b.chars().next() {
-        return false;
+    if a.is_empty() || b.is_empty() {
+        return Some(Doubt::TooDifferent);
     }
     let longest = a.chars().count().max(b.chars().count());
-    levenshtein(&a, &b) <= (longest * 2 / 5).max(1)
+    if levenshtein(&a, &b) > (longest * 2 / 5).max(1) {
+        return Some(Doubt::TooDifferent);
+    }
+    match a.chars().next() == b.chars().next() {
+        true => None,
+        // Short words with another first sound ("wir" → "ihr") are rewordings.
+        false if longest < 5 => Some(Doubt::TooDifferent),
+        false => Some(Doubt::FirstSound),
+    }
+}
+
+/// Whether a correction looks like a mishearing rather than a rewording ("gut" → "super",
+/// "Montag" → "Dienstag"); only these are learned without asking.
+pub fn sounds_alike(heard: &str, meant: &str) -> bool {
+    doubt(heard, meant).is_none()
 }
 
 /// Dictionary when the dictionary (with `meant` in it) would turn `heard` into `meant`; else a
@@ -259,6 +337,67 @@ mod tests {
         assert!(!sounds_alike("Montag", "Dienstag"));
         assert!(!sounds_alike("morgen", "Montag"));
         assert!(!sounds_alike("ich", "wir"));
+    }
+
+    #[test]
+    fn asks_when_only_the_first_sound_differs() {
+        assert_eq!(doubt("deckläuen", "deployen"), None);
+        assert_eq!(doubt("Radman-Page", "Admin-Page"), Some(Doubt::FirstSound));
+        assert_eq!(doubt("Montag", "Dienstag"), Some(Doubt::TooDifferent));
+        assert_eq!(doubt("wir", "ihr"), Some(Doubt::TooDifferent)); // short: a rewording
+        let review = review(
+            "Wir deckläuen die Radman-Page am Montag.",
+            "Wir deployen die Admin-Page am Dienstag.",
+            DICTIONARY,
+        );
+        let heard = |c: &[Candidate]| c.iter().map(|c| c.heard.clone()).collect::<Vec<_>>();
+        assert_eq!(heard(&review.sure), ["deckläuen"]);
+        assert_eq!(heard(&review.ask), ["Radman-Page"]);
+        assert_eq!(
+            review.skipped,
+            ["„Montag“ → „Dienstag“: too different, a rewording"]
+        );
+    }
+
+    #[test]
+    fn says_why_a_change_is_not_learned() {
+        let skipped = |old: &str, new: &str| review(old, new, DICTIONARY).skipped;
+        assert_eq!(
+            skipped("Das ist gut", "Das ist wirklich gut"),
+            ["„“ → „wirklich“: words added or removed only"]
+        );
+        assert_eq!(
+            skipped(
+                "Ich gehe morgen früh hin",
+                "Wir fahren heute Abend nicht hin"
+            ),
+            [
+                "„Ich gehe morgen früh“ → „Wir fahren heute Abend nicht“: more than 3 words, a rewording"
+            ]
+        );
+        assert_eq!(
+            skipped("bei Solis, tick heute", "bei SOLISTIQ heute"),
+            ["„Solis, tick“ → „SOLISTIQ“: has , # or =>"]
+        );
+        assert!(skipped("das ist gut", "Das ist gut!").is_empty());
+    }
+
+    #[test]
+    fn ordinary_words_become_a_rule_names_go_into_the_dictionary() {
+        assert!(term("Drive"));
+        assert!(term("Server Prod"));
+        assert!(term("M5 Pro"));
+        assert!(!term("drive liegen"));
+        assert!(!term("Drive liegen"));
+        let kind = |old: &str, new: &str| candidates(old, new, &[] as &[&str])[0].kind;
+        assert_eq!(
+            kind("Das soll in Dry fliegen.", "Das soll in drive liegen."),
+            Kind::Replacement
+        );
+        assert_eq!(
+            kind("Das läuft auf ServerProad.", "Das läuft auf Server Prod."),
+            Kind::Dictionary
+        );
     }
 
     #[test]
