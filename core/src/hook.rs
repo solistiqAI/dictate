@@ -8,9 +8,10 @@
 //!
 //! Modifier names on Windows: `alt`/`option` = Alt, `cmd`/`command` = the Windows key, `ctrl`,
 //! `shift`; `right-alt` (AltGr on German keyboards), `right-ctrl`, `right-shift`, `right-cmd`
-//! work on their own. There is no Fn key on Windows: a `fn` trigger never fires there.
+//! work on their own, and two or more modifiers together (`ctrl+alt`) as a combo. There is no Fn
+//! key on Windows: a `fn` trigger, or a combo with `fn`, never fires there.
 
-use crate::trigger::{Input, Seen, Trigger, flags};
+use crate::trigger::{Change, Input, Seen, Trigger, flags, modifiers_changed};
 
 /// A key or mouse button event from the hooks. Keys by Windows virtual-key code (`VK_…`, left
 /// and right modifiers apart as low-level hooks report them), mouse buttons by the numbers the
@@ -92,14 +93,12 @@ impl Hook {
     /// Modifier triggers always pass (other shortcuts use them), like on macOS.
     pub fn feed(&mut self, event: Event, out: &mut Vec<Out>) -> bool {
         if let Some(code) = self.track(event) {
-            for i in 0..self.triggers.len() {
-                if let Input::Modifier { keycode, mask } = self.triggers[i].input
-                    && keycode == code
-                    && self.set(i, self.held & mask != 0, out)
-                {
-                    break;
-                }
-            }
+            let changes = modifiers_changed(&self.triggers, &mut self.down, code, self.held);
+            out.extend(changes.into_iter().map(|change| match change {
+                Change::Press(i) => Out::Press(i),
+                Change::Release(i) => Out::Release(i),
+                Change::Interrupt(i) => Out::Interrupt(i),
+            }));
             return false;
         }
         let key = match event {
@@ -330,6 +329,26 @@ mod tests {
     }
 
     #[test]
+    fn a_modifier_combo_presses_and_passes_through() {
+        let mut h = hook(&["right-alt", "ctrl+alt"]);
+        assert_eq!(feed(&mut h, Event::KeyDown(LCTRL)), (false, vec![]));
+        // Right Alt with Ctrl held: the combo, not right-alt.
+        assert_eq!(
+            feed(&mut h, Event::KeyDown(RALT)),
+            (false, vec![Out::Press(1)])
+        );
+        assert_eq!(
+            feed(&mut h, Event::KeyUp(LCTRL)),
+            (false, vec![Out::Release(1)])
+        );
+        assert_eq!(feed(&mut h, Event::KeyUp(RALT)), (false, vec![]));
+        // A combo with fn never fires on Windows (no Fn key there).
+        let mut h = hook(&["alt+cmd+fn"]);
+        assert_eq!(feed(&mut h, Event::KeyDown(0xA4)), (false, vec![]));
+        assert_eq!(feed(&mut h, Event::KeyDown(0x5B)), (false, vec![]));
+    }
+
+    #[test]
     fn capture_records_windows_keys_as_trigger_specs() {
         let mut h = hook(&[]);
         let mut capture = Capture::default();
@@ -350,7 +369,15 @@ mod tests {
             run(&mut h, Event::KeyDown(KEY_5)),
             Some(Captured::Spec("shift+ctrl+5".into()))
         );
-        run(&mut h, Event::KeyUp(LSHIFT));
+        assert_eq!(run(&mut h, Event::KeyUp(LSHIFT)), None);
+        assert_eq!(run(&mut h, Event::KeyUp(LCTRL)), None);
+        // Modifiers alone: on the first release.
+        run(&mut h, Event::KeyDown(LCTRL));
+        run(&mut h, Event::KeyDown(0xA4));
+        assert_eq!(
+            run(&mut h, Event::KeyUp(0xA4)),
+            Some(Captured::Spec("ctrl+alt".into()))
+        );
         run(&mut h, Event::KeyUp(LCTRL));
         assert_eq!(
             run(&mut h, Event::KeyDown(VK_ESCAPE)),

@@ -35,7 +35,7 @@ use core_graphics::event::{
 use core_graphics::event_source::{CGEventSource, CGEventSourceStateID};
 
 use super::{RECORDING, TapEvent, VOICE};
-use crate::trigger::{Capture, Captured, Input, Seen, Trigger, flags};
+use crate::trigger::{Capture, Captured, Change, Input, Seen, Trigger, flags, modifiers_changed};
 
 /// Marks events we post ourselves (the ⌘V), so the tap lets them through untouched.
 const OWN_EVENT: i64 = 0x5051_4954; // "SQIT"
@@ -184,15 +184,19 @@ pub fn install_tap(
             return CallbackResult::Drop;
         }
 
+        if matches!(kind, CGEventType::FlagsChanged) {
+            // Modifiers pass through (other shortcuts use them).
+            for change in modifiers_changed(&triggers, &mut down, keycode, event_flags) {
+                let _ = events.send(match change {
+                    Change::Press(index) => TapEvent::Press(index, now),
+                    Change::Release(index) => TapEvent::Release(index, now),
+                    Change::Interrupt(index) => TapEvent::Interrupt(index, now),
+                });
+            }
+            return CallbackResult::Keep;
+        }
         for (index, trigger) in triggers.iter().enumerate() {
             let pressed = match (trigger.input, kind) {
-                (
-                    Input::Modifier {
-                        keycode: code,
-                        mask,
-                    },
-                    CGEventType::FlagsChanged,
-                ) if code == keycode => Some(event_flags & mask != 0),
                 (
                     Input::Key {
                         keycode: code,
@@ -230,11 +234,8 @@ pub fn install_tap(
             } else {
                 TapEvent::Release(index, now)
             });
-            // Modifiers pass through (other shortcuts use them); keys and buttons are ours.
-            return match trigger.input {
-                Input::Modifier { .. } => CallbackResult::Keep,
-                _ => CallbackResult::Drop,
-            };
+            // Keys and buttons are ours.
+            return CallbackResult::Drop;
         }
         if matches!(kind, CGEventType::KeyDown) {
             // Another key while a keyboard trigger is held: maybe a shortcut, not dictation.

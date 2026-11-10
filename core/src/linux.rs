@@ -206,7 +206,7 @@ pub fn grabs(triggers: &[Trigger]) -> Vec<Grab> {
                 modifiers: x11_modifiers(modifiers),
             }),
             Input::Mouse { button } => x11_button_of(button).map(Grab::Button),
-            Input::Modifier { .. } => None,
+            Input::Modifier { .. } | Input::Chord { .. } => None,
         };
         if let Some(grab) = grab
             && !out.contains(&grab)
