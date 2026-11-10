@@ -12,6 +12,7 @@ test('macOS draws modifiers as symbols', () => {
 	assert.deepEqual(caps('shift+alt+cmd+5', 'macos'), ['⇧', '⌥', '⌘', '5']);
 	assert.deepEqual(caps('ctrl+opt+space', 'macos'), ['⌃', '⌥', 'SPACE']);
 	assert.deepEqual(caps('fn', 'macos'), ['fn']);
+	assert.deepEqual(caps('alt+cmd+fn', 'macos'), ['⌥', '⌘', 'fn']);
 	assert.deepEqual(caps('right-option', 'macos'), ['rechts ⌥']);
 	assert.deepEqual(caps('right-cmd', 'macos', 'en'), ['right ⌘']);
 	assert.deepEqual(caps('mouse4', 'macos'), ['Maustaste 4']);

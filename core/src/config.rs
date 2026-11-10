@@ -248,7 +248,7 @@ fn default_sounds() -> String {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct TriggerConfig {
-    /// As accepted by `--trigger`: `fn`, `shift+alt+cmd+5`, `mouse3`, …
+    /// As accepted by `--trigger`: `fn`, `shift+alt+cmd+5`, `alt+cmd+fn`, `mouse3`, …
     pub key: String,
     /// `hold`, `toggle` or `hybrid`.
     pub mode: String,

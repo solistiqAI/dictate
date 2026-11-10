@@ -53,8 +53,8 @@ struct Cli {
 #[derive(clap::Args)]
 struct RunArgs {
     /// Key or mouse button that records: fn, right-option, right-command, f13…f20,
-    /// ctrl+alt+cmd+d, mouse2 (middle), mouse3/mouse4 (side buttons). Repeatable;
-    /// a suffix like `mouse3@toggle` gives one trigger its own mode.
+    /// ctrl+alt+cmd+d, alt+cmd+fn (modifiers alone), mouse2 (middle), mouse3/mouse4 (side
+    /// buttons). Repeatable; a suffix like `mouse3@toggle` gives one trigger its own mode.
     /// Without it the settings (config.toml) apply: by default Fn and ⇧⌥⌘5 in hybrid mode.
     #[arg(short, long = "trigger")]
     triggers: Vec<String>,

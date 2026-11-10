@@ -54,7 +54,7 @@ use windows::Win32::UI::WindowsAndMessaging::{
 use windows::core::{PCWSTR, w};
 
 use super::{RECORDING, TapEvent, VOICE};
-use crate::trigger::{Capture, Captured, Input, Trigger};
+use crate::trigger::{Capture, Captured, Input, Trigger, flags};
 use dictate_core::hook::{Event, Hook, Out, VK_ESCAPE};
 
 /// Marks input we send ourselves (Ctrl+V, Ctrl+C, the menu mask), so the hooks let it through.
@@ -203,8 +203,11 @@ fn handle(event: Event) -> bool {
     for o in out {
         let _ = state.events.send(match o {
             Out::Press(i) => {
-                mask |= matches!(state.triggers[i].input,
-                    Input::Modifier { keycode, .. } if ALT_AND_WIN.contains(&keycode));
+                mask |= match state.triggers[i].input {
+                    Input::Modifier { keycode, .. } => ALT_AND_WIN.contains(&keycode),
+                    Input::Chord { modifiers } => modifiers & (flags::OPTION | flags::COMMAND) != 0,
+                    _ => false,
+                };
                 TapEvent::Press(i, now)
             }
             Out::Release(i) => TapEvent::Release(i, now),

@@ -50,6 +50,8 @@ pub mod flags {
     pub const COMMAND: u64 = 0x0010_0000;
     pub const FN: u64 = 0x0080_0000;
     pub const ALL: u64 = SHIFT | CONTROL | OPTION | COMMAND;
+    /// What a modifier combo ([`super::Input::Chord`]) can hold: the four and Fn.
+    pub const CHORD: u64 = ALL | FN;
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -59,6 +61,9 @@ pub enum Input {
     Modifier { keycode: u16, mask: u64 },
     /// A regular key, optionally with modifiers held (⌃⌥⌘D, F18, …).
     Key { keycode: u16, modifiers: u64 },
+    /// Two or more modifiers held together, no other key (⌥⌘Fn): pressed while exactly these
+    /// are down (`modifiers`, bits of [`flags::CHORD`]), released when one is let go.
+    Chord { modifiers: u64 },
     /// A mouse button by number (2 = middle, 3 = back, 4 = forward).
     Mouse { button: u16 },
 }
@@ -69,7 +74,7 @@ pub struct Trigger {
     pub mode: Mode,
 }
 
-/// Parses `fn`, `right-option`, `f18`, `ctrl+alt+cmd+d` or `mouse3`, with an optional
+/// Parses `fn`, `right-option`, `f18`, `ctrl+alt+cmd+d`, `alt+cmd+fn` or `mouse3`, with an optional
 /// `@hold|@toggle|@hybrid` suffix that overrides `default_mode`.
 pub fn parse_trigger(spec: &str, default_mode: Mode) -> Result<Trigger> {
     let (input, mode) = match spec.split_once('@') {
@@ -93,6 +98,13 @@ fn parse_input(s: &str) -> Result<Input> {
     }
     if let Some(input) = modifier(s) {
         return Ok(input);
+    }
+    if s.split('+').all(|part| chord_flag(part).is_some()) {
+        let modifiers = s.split('+').filter_map(chord_flag).fold(0, |m, f| m | f);
+        if modifiers.count_ones() < 2 {
+            bail!("a modifier on its own: fn or right-…; a combo of modifiers needs two of them");
+        }
+        return Ok(Input::Chord { modifiers });
     }
     let mut modifiers = 0;
     let mut parts: Vec<&str> = s.split('+').collect();
@@ -119,6 +131,33 @@ const MODIFIERS: &[(&str, u16, u64)] = &[
     ("right-control", 62, 0x2000),
     ("right-shift", 60, 0x04),
 ];
+
+/// The flag of a modifier name in a combo (`alt+cmd+fn`).
+fn chord_flag(s: &str) -> Option<u64> {
+    Some(match s {
+        "shift" => flags::SHIFT,
+        "ctrl" | "control" => flags::CONTROL,
+        "alt" | "opt" | "option" => flags::OPTION,
+        "cmd" | "command" => flags::COMMAND,
+        "fn" | "globe" => flags::FN,
+        _ => return None,
+    })
+}
+
+/// `modifiers` as a spec's names in the usual order: `shift+alt+cmd+fn`.
+fn modifier_names(modifiers: u64) -> Vec<&'static str> {
+    [
+        (flags::SHIFT, "shift"),
+        (flags::CONTROL, "ctrl"),
+        (flags::OPTION, "alt"),
+        (flags::COMMAND, "cmd"),
+        (flags::FN, "fn"),
+    ]
+    .into_iter()
+    .filter(|(bit, _)| modifiers & bit != 0)
+    .map(|(_, name)| name)
+    .collect()
+}
 
 fn modifier(s: &str) -> Option<Input> {
     let s = match s {
@@ -305,6 +344,71 @@ impl Machine {
     }
 }
 
+/// What a modifier change did to the triggers (see [`modifiers_changed`]).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Change {
+    Press(usize),
+    Release(usize),
+    /// A combo of modifiers took over while this trigger was held (Fn, then ⌥⌘ for ⌥⌘Fn).
+    Interrupt(usize),
+}
+
+/// Modifier flags changed: `keycode` is the modifier key, `flags` the flags after it
+/// (CGEventFlags, device bits included). Updates `down` (which triggers are held) and says what
+/// happened, in order. Lone modifiers (`fn`, `right-option`) follow their key; combos
+/// (`alt+cmd+fn`) are pressed while exactly their modifiers are down. A combo wins over a lone
+/// modifier that is part of it: ⌥⌘ then Fn presses `alt+cmd+fn`, not `fn`; Fn then ⌥⌘
+/// interrupts `fn` first (the machine throws that start away) and presses the combo.
+pub fn modifiers_changed(
+    triggers: &[Trigger],
+    down: &mut [bool],
+    keycode: u16,
+    flags: u64,
+) -> Vec<Change> {
+    let mut changes = Vec::new();
+    let mut presses = Vec::new();
+    for (i, trigger) in triggers.iter().enumerate() {
+        if let Input::Chord { modifiers } = trigger.input {
+            let pressed = flags & flags::CHORD == modifiers;
+            if pressed != down[i] {
+                down[i] = pressed;
+                match pressed {
+                    true => presses.push(i),
+                    false => changes.push(Change::Release(i)),
+                }
+            }
+        }
+    }
+    let chord = !presses.is_empty();
+    if chord {
+        for (i, trigger) in triggers.iter().enumerate() {
+            if down[i] && !presses.contains(&i) && !matches!(trigger.input, Input::Mouse { .. }) {
+                changes.push(Change::Interrupt(i));
+            }
+        }
+    }
+    for (i, trigger) in triggers.iter().enumerate() {
+        if let Input::Modifier {
+            keycode: code,
+            mask,
+        } = trigger.input
+            && code == keycode
+        {
+            let pressed = flags & mask != 0;
+            if pressed == down[i] || (pressed && chord) {
+                continue;
+            }
+            down[i] = pressed;
+            match pressed {
+                true => presses.push(i),
+                false => changes.push(Change::Release(i)),
+            }
+        }
+    }
+    changes.extend(presses.into_iter().map(Change::Press));
+    changes
+}
+
 /// How long after a press another key still counts as part of a shortcut.
 pub const INTERRUPT_WINDOW: Duration = Duration::from_secs(1);
 
@@ -338,11 +442,15 @@ pub enum Captured {
 }
 
 /// Records a trigger by pressing it: keys and combos on key down, mouse buttons on press, a
-/// lone modifier (Fn, right ⌥) on release when nothing else came in between.
+/// lone modifier (Fn, right ⌥) or a combo of modifiers (⌥⌘Fn) on the first release when nothing
+/// else came in between.
 #[derive(Debug, Default)]
 pub struct Capture {
     /// A trigger-capable modifier that is down, by keycode.
     lone: Option<u16>,
+    /// The modifiers held now and the most held together since the last time none was.
+    held: u64,
+    most: u64,
 }
 
 const KEY_ESCAPE: u16 = 53;
@@ -351,7 +459,10 @@ impl Capture {
     pub fn feed(&mut self, seen: Seen) -> Option<Captured> {
         match seen {
             Seen::KeyDown { keycode, flags } => {
+                // A key came: what is held is part of a combo with it, not a combo of modifiers.
                 self.lone = None;
+                self.held = flags & flags::CHORD;
+                self.most = 0;
                 let modifiers = flags & flags::ALL;
                 if keycode == KEY_ESCAPE && modifiers == 0 {
                     return Some(Captured::Cancelled);
@@ -359,24 +470,24 @@ impl Capture {
                 let Some(key) = key_name(keycode) else {
                     return Some(Captured::Unknown(keycode));
                 };
-                let mut spec = String::new();
-                for (bit, name) in [
-                    (flags::SHIFT, "shift"),
-                    (flags::CONTROL, "ctrl"),
-                    (flags::OPTION, "alt"),
-                    (flags::COMMAND, "cmd"),
-                ] {
-                    if modifiers & bit != 0 {
-                        spec.push_str(name);
-                        spec.push('+');
-                    }
-                }
-                spec.push_str(key);
-                Some(Captured::Spec(spec))
+                let mut names = modifier_names(modifiers);
+                names.push(key);
+                Some(Captured::Spec(names.join("+")))
             }
             Seen::Mouse { button } if button >= 2 => Some(Captured::Spec(format!("mouse{button}"))),
             Seen::Mouse { .. } => None,
             Seen::Flags { keycode, flags } => {
+                let held = flags & flags::CHORD;
+                let let_go = self.held & !held != 0;
+                self.held = held;
+                self.most |= held;
+                if let_go && self.most.count_ones() >= 2 {
+                    // Two or more held together, nothing else, now one goes: that combo.
+                    return Some(Captured::Spec(modifier_names(self.most).join("+")));
+                }
+                if held == 0 {
+                    self.most = 0;
+                }
                 let known = MODIFIERS.iter().find(|(_, code, _)| *code == keycode);
                 match (known, self.lone) {
                     // Pressed on its own: wait for the release.
@@ -470,6 +581,191 @@ mod tests {
         assert!(parse_trigger("mouse1", Mode::Hold).is_err());
         assert!(parse_trigger("hyper+x", Mode::Hold).is_err());
         assert!(parse_trigger("fn@sometimes", Mode::Hold).is_err());
+        assert_eq!(
+            parse_trigger("alt+cmd+fn", Mode::Hold).unwrap().input,
+            Input::Chord {
+                modifiers: flags::OPTION | flags::COMMAND | flags::FN
+            }
+        );
+        assert_eq!(
+            parse_trigger("Globe+Ctrl", Mode::Hold).unwrap().input,
+            Input::Chord {
+                modifiers: flags::CONTROL | flags::FN
+            }
+        );
+        assert!(parse_trigger("cmd+command", Mode::Hold).is_err());
+        assert!(parse_trigger("shift", Mode::Hold).is_err());
+    }
+
+    /// The tap's view: flags after each modifier key event, through [`modifiers_changed`].
+    fn flag_changes(specs: &[&str], events: &[(u16, u64)]) -> (Vec<bool>, Vec<Vec<Change>>) {
+        let triggers: Vec<Trigger> = specs
+            .iter()
+            .map(|s| parse_trigger(s, Mode::Hold).unwrap())
+            .collect();
+        let mut down = vec![false; triggers.len()];
+        let changes = events
+            .iter()
+            .map(|&(keycode, flags)| modifiers_changed(&triggers, &mut down, keycode, flags))
+            .collect();
+        (down, changes)
+    }
+
+    const OPT: u64 = flags::OPTION | 0x20;
+    const OPT_CMD: u64 = OPT | flags::COMMAND | 0x08;
+
+    #[test]
+    fn a_modifier_combo_needs_exactly_its_modifiers() {
+        let all = OPT_CMD | flags::FN;
+        // ⌥, ⌘, Fn: pressed on Fn; let go of ⌥: released.
+        let (down, changes) = flag_changes(
+            &["alt+cmd+fn"],
+            &[
+                (58, OPT),
+                (55, OPT_CMD),
+                (63, all),
+                (58, all & !OPT),
+                (55, flags::FN),
+                (63, 0),
+            ],
+        );
+        use Change::*;
+        assert_eq!(
+            changes,
+            [
+                vec![],
+                vec![],
+                vec![Press(0)],
+                vec![Release(0)],
+                vec![],
+                vec![]
+            ]
+        );
+        assert_eq!(down, [false]);
+        // ⇧ on top is another combo: released, pressed again when ⇧ goes.
+        let shift = all | flags::SHIFT | 0x02;
+        let (_, changes) = flag_changes(&["alt+cmd+fn"], &[(63, all), (56, shift), (56, all)]);
+        assert_eq!(changes, [vec![Press(0)], vec![Release(0)], vec![Press(0)]]);
+        // Caps Lock and device bits don't matter.
+        let (down, _) = flag_changes(&["alt+cmd+fn"], &[(63, all | 0x0001_0000 | 0x100)]);
+        assert_eq!(down, [true]);
+    }
+
+    #[test]
+    fn a_combo_wins_over_the_lone_modifier_in_it() {
+        use Change::*;
+        let all = OPT_CMD | flags::FN;
+        // ⌥⌘ held, then Fn: the combo, not fn; its release changes nothing for fn.
+        let (down, changes) = flag_changes(
+            &["fn", "alt+cmd+fn"],
+            &[(58, OPT), (55, OPT_CMD), (63, all), (63, OPT_CMD)],
+        );
+        assert_eq!(changes, [vec![], vec![], vec![Press(1)], vec![Release(1)]]);
+        assert_eq!(down, [false, false]);
+        // Fn first: fn starts, the combo interrupts it (the machine discards) and presses.
+        let (down, changes) = flag_changes(
+            &["fn", "alt+cmd+fn"],
+            &[
+                (63, flags::FN),
+                (58, flags::FN | OPT),
+                (55, all),
+                (63, OPT_CMD),
+            ],
+        );
+        assert_eq!(
+            changes,
+            [
+                vec![Press(0)],
+                vec![],
+                vec![Interrupt(0), Press(1)],
+                vec![Release(1), Release(0)]
+            ]
+        );
+        assert_eq!(down, [false, false]);
+        let mut m = Machine::default();
+        assert_eq!(m.press(0, Mode::Hold, ms(0)), Action::Start);
+        assert_eq!(m.interrupt(0, ms(300)), Action::Discard);
+        assert_eq!(m.press(1, Mode::Hold, ms(300)), Action::Start);
+        assert_eq!(m.release(1, Mode::Hold, ms(2000)), Action::Stop);
+        assert_eq!(m.release(0, Mode::Hold, ms(2000)), Action::None);
+        // Without a combo configured, Fn with ⌥⌘ held stays a Fn press, as before.
+        let (down, changes) = flag_changes(&["fn"], &[(58, OPT), (55, OPT_CMD), (63, all)]);
+        assert_eq!(changes, [vec![], vec![], vec![Press(0)]]);
+        assert_eq!(down, [true]);
+    }
+
+    #[test]
+    fn capture_takes_a_combo_of_modifiers_on_the_first_release() {
+        let all = OPT_CMD | flags::FN;
+        let got = capture(&[
+            Seen::Flags {
+                keycode: 58,
+                flags: OPT,
+            },
+            Seen::Flags {
+                keycode: 55,
+                flags: OPT_CMD,
+            },
+            Seen::Flags {
+                keycode: 63,
+                flags: all,
+            },
+            Seen::Flags {
+                keycode: 63,
+                flags: OPT_CMD,
+            },
+        ]);
+        assert_eq!(got, Some(Captured::Spec("alt+cmd+fn".into())));
+        assert_eq!(
+            parse_trigger("alt+cmd+fn", Mode::Hold).unwrap().input,
+            Input::Chord {
+                modifiers: flags::OPTION | flags::COMMAND | flags::FN
+            }
+        );
+        // Right ⌥ with ⌘: the combo, not right-option.
+        let got = capture(&[
+            Seen::Flags {
+                keycode: 55,
+                flags: flags::COMMAND | 0x08,
+            },
+            Seen::Flags {
+                keycode: 61,
+                flags: flags::COMMAND | 0x08 | flags::OPTION | 0x40,
+            },
+            Seen::Flags {
+                keycode: 61,
+                flags: flags::COMMAND | 0x08,
+            },
+        ]);
+        assert_eq!(got, Some(Captured::Spec("alt+cmd".into())));
+        // ⌥⌘ then a key: the key's combo; letting go afterwards records nothing more.
+        let mut c = Capture::default();
+        for seen in [
+            Seen::Flags {
+                keycode: 58,
+                flags: OPT,
+            },
+            Seen::Flags {
+                keycode: 55,
+                flags: OPT_CMD,
+            },
+        ] {
+            assert_eq!(c.feed(seen), None);
+        }
+        assert_eq!(
+            c.feed(Seen::KeyDown {
+                keycode: 23,
+                flags: OPT_CMD
+            }),
+            Some(Captured::Spec("alt+cmd+5".into()))
+        );
+        assert_eq!(
+            c.feed(Seen::Flags {
+                keycode: 58,
+                flags: flags::COMMAND | 0x08
+            }),
+            None
+        );
     }
 
     #[test]
@@ -667,7 +963,7 @@ mod tests {
             }),
             None
         );
-        // Fn pressed, right ⌥ joins: neither counts alone.
+        // Fn pressed, right ⌥ joins: neither counts alone, the two are a combo.
         assert_eq!(
             c.feed(Seen::Flags {
                 keycode: 63,
@@ -678,16 +974,16 @@ mod tests {
         assert_eq!(
             c.feed(Seen::Flags {
                 keycode: 61,
-                flags: flags::FN | 0x40
+                flags: flags::FN | flags::OPTION | 0x40
             }),
             None
         );
         assert_eq!(
             c.feed(Seen::Flags {
                 keycode: 63,
-                flags: 0x40
+                flags: flags::OPTION | 0x40
             }),
-            None
+            Some(Captured::Spec("alt+fn".into()))
         );
         assert_eq!(
             capture(&[Seen::KeyDown {
