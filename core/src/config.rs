@@ -19,6 +19,10 @@ pub struct Config {
     /// Start/stop cues: `leise`, `mittel` or `aus`.
     #[serde(default = "default_sounds")]
     pub sounds: String,
+    /// An audio file of your own to play instead of the start cue (any format `afplay` takes on
+    /// macOS); empty = the built-in cue. Only in config.toml, not on the settings page.
+    #[serde(default)]
+    pub start_sound: String,
     /// Mute the Mac's sound output while recording.
     #[serde(default)]
     pub mute_while_recording: bool,
@@ -285,6 +289,7 @@ impl Default for Config {
     fn default() -> Self {
         Config {
             sounds: default_sounds(),
+            start_sound: String::new(),
             mute_while_recording: false,
             pause_media: true,
             model: default_model(),

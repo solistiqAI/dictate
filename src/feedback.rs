@@ -79,16 +79,31 @@ pub fn prepare(dir: &Path) -> Result<Sounds> {
     }
     Ok(Sounds {
         dir: dir.to_path_buf(),
+        start: None,
     })
 }
 
 pub struct Sounds {
     dir: PathBuf,
+    /// The user's own start sound (`start_sound` in config.toml), when the file exists.
+    start: Option<PathBuf>,
 }
 
 impl Sounds {
     pub fn path(&self, cue: Cue) -> PathBuf {
-        self.dir.join(cue.file_name())
+        match (&self.start, cue) {
+            (Some(own), Cue::Start) => own.clone(),
+            _ => self.dir.join(cue.file_name()),
+        }
+    }
+
+    /// Plays `file` instead of the start cue; empty or missing = the built-in cue.
+    pub fn set_start(&mut self, file: &str) {
+        let own = PathBuf::from(file);
+        self.start = (!file.is_empty() && own.is_file()).then_some(own);
+        if !file.is_empty() && self.start.is_none() {
+            eprintln!("sounds: start_sound {file:?} not found, using the built-in cue");
+        }
     }
 }
 
@@ -106,6 +121,23 @@ mod tests {
             assert!(peak <= 0.5 && peak > 0.2, "{cue:?} peak {peak}");
         }
         assert_ne!(synth(Cue::Start), synth(Cue::Stop));
+    }
+
+    #[test]
+    fn own_start_sound_only_when_the_file_exists() {
+        let dir = std::env::temp_dir().join(format!("dictate-cues-{}", std::process::id()));
+        let mut sounds = prepare(&dir).unwrap();
+        let built_in = dir.join("start.wav");
+        sounds.set_start("/no/such/file.wav");
+        assert_eq!(sounds.path(Cue::Start), built_in);
+        let own = dir.join("own.wav");
+        std::fs::copy(&built_in, &own).unwrap();
+        sounds.set_start(own.to_str().unwrap());
+        assert_eq!(sounds.path(Cue::Start), own);
+        assert_eq!(sounds.path(Cue::Stop), dir.join("stop.wav"));
+        sounds.set_start("");
+        assert_eq!(sounds.path(Cue::Start), built_in);
+        std::fs::remove_dir_all(dir).unwrap();
     }
 
     #[test]

@@ -1392,7 +1392,11 @@ fn worker(
     let mut cues = Cues::new(
         feedback::prepare(&asr::data_dir().join("sounds"))
             .map_err(|e| eprintln!("sounds: {e:#}"))
-            .ok(),
+            .ok()
+            .map(|mut sounds| {
+                sounds.set_start(&settings.config.start_sound);
+                sounds
+            }),
         feedback::volume(&settings.config.sounds),
         settings.config.mute_while_recording,
         settings.config.pause_media,
@@ -1528,6 +1532,9 @@ fn worker(
                     }
                 }
                 cues.volume = feedback::volume(&config.sounds);
+                if let Some(sounds) = cues.sounds.as_mut() {
+                    sounds.set_start(&config.start_sound);
+                }
                 cues.mute = config.mute_while_recording;
                 cues.pause = config.pause_media;
                 if config.model != wanted {
