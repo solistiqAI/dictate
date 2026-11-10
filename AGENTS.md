@@ -207,6 +207,9 @@ what to try first: `docs/linux.md`.
   `platform/mod.rs`); `core/` stays free of OS calls and macOS crates (`trigger.rs`, `hook.rs`
   included) so it builds and tests on Linux. New platform-free logic goes into the core; the app only
   re-exports it.
+- Never commit audio files for the cues: the start/stop/cancel sounds are synthesised in
+  `src/feedback.rs`. A team's or a person's own start sound stays outside this repo and is set
+  with `start_sound` in `config.toml`.
 - Never commit model files or recordings of people; models live in the data folder. The synthetic
   eval clips in `eval/clips/` (macOS voices) are the one exception.
 - Do not start the live mode (`dictate` without a subcommand) from an unattended agent: it asks for
