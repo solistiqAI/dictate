@@ -134,6 +134,15 @@ texts! {
     no_text_field => "Kein Textfeld", "No text field";
     nothing_heard => "Nichts gehört", "Nothing heard";
     copy => "Kopieren", "Copy";
+    /// Once per start when a shortcut tidies and the chosen Gemma is not downloaded.
+    #[cfg(target_os = "macos")]
+    without_gemma =>
+        "Ohne Gemma hat Apple Intelligence nachbearbeitet, das dauert bei langen Texten mehrere Sekunden. Gemma laden: Einstellungen → Erkennung",
+        "Without Gemma, Apple Intelligence tidied the text, which takes several seconds on long ones. Get Gemma: Settings → Recognition";
+    #[cfg(not(target_os = "macos"))]
+    without_gemma =>
+        "Ohne Gemma bleibt der Text, wie er war. Gemma laden: Einstellungen → Erkennung",
+        "Without Gemma, the text stays as it was. Get Gemma: Settings → Recognition";
     close => "Schließen", "Close";
     copied_check => "Kopiert ✓", "Copied ✓";
     undo => "Rückgängig", "Undo";

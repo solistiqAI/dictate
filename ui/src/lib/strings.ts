@@ -149,6 +149,10 @@ export const de = {
 	'recognition.model': 'Modell',
 	'recognition.downloading': 'Lädt',
 	'recognition.download': 'Laden',
+	'gemma_missing.title': 'Gemma fehlt: Apple Intelligence bearbeitet nach',
+	'gemma_missing.hint':
+		'Formatieren und Korrigieren dauern damit bei langen Diktaten mehrere Sekunden statt etwa einer halben Sekunde, und es erkennt weniger Selbstkorrekturen. Gemma 4 E4B lädt einmal 5 GB auf diesen Mac.',
+	'gemma_missing.download': 'Gemma laden',
 	'recognition.active': 'Aktiv',
 	'recognition.tidy': 'Formatieren und Korrigieren',
 	'recognition.tidy.footer':
@@ -398,6 +402,10 @@ export const en: Record<Key, string> = {
 	'recognition.model': 'Model',
 	'recognition.downloading': 'Downloading',
 	'recognition.download': 'Download',
+	'gemma_missing.title': 'Gemma is missing: Apple Intelligence tidies the text',
+	'gemma_missing.hint':
+		'Format and clean up then take several seconds on a long dictation instead of about half a second, and catch fewer self-corrections. Gemma 4 E4B is a one-time 5 GB download to this Mac.',
+	'gemma_missing.download': 'Get Gemma',
 	'recognition.active': 'Active',
 	'recognition.tidy': 'Format and clean up',
 	'recognition.tidy.footer':
@@ -522,6 +530,8 @@ const PC: Reworded = {
 		'shortcuts.footer':
 			'Halten: sprechen, solange gedrückt. Umschalten: einmal tippen startet, nochmal tippen stoppt. Hybrid: kurz tippen = freihändig, ab einer halben Sekunde halten = wie Halten. Formatieren: Gemma setzt den Text vor dem Einfügen in Absätze und Listen, die Wörter bleiben deine. Formatieren + Korrigieren (Standard): im selben Durchgang fallen Füllwörter (äh, ähm) weg, und wo du dich verbesserst („um drei, äh nein, um fünf“), bleibt nur die Verbesserung; was wegfällt, ist schon beim Sprechen durchgestrichen. Übernommen wird nur, was eindeutig eine Selbstkorrektur ist. Läuft auf diesem Computer und braucht Gemma (unter Erkennung).',
 		'recognition.intro': 'Läuft vollständig auf diesem Computer, nichts geht ins Netz.',
+		'gemma_missing.title': 'Gemma fehlt: der Text wird nicht nachbearbeitet',
+		'gemma_missing.hint': 'Formatieren und Korrigieren brauchen Gemma 4 E4B, einmal 5 GB auf diesen Computer.',
 		'recognition.tidy.footer':
 			'Für Kurzbefehle mit „Formatieren“ oder „Formatieren + Korrigieren“: das Modell setzt den Text und schlägt vor, wo du dich verbessert hast; übernommen wird nur, was eindeutig eine Selbstkorrektur ist. Ohne Gemma bleibt der Text, wie er erkannt wurde.',
 		'recognition.boost.hint':
@@ -546,6 +556,8 @@ const PC: Reworded = {
 		'shortcuts.footer':
 			'Hold: speak while it’s held down. Toggle: tap once to start, tap again to stop. Hybrid: a short tap = hands-free, holding for half a second or longer = like Hold. Format: Gemma lays the text out in paragraphs and lists before pasting; the words stay yours. Format + Clean up (default): in the same pass, filler words (uh, um) drop out, and where you correct yourself (“at three, uh no, at five”), only the correction stays; what drops out is struck through while you speak. Only what is clearly a self-correction is applied. Runs on this computer and needs Gemma (under Recognition).',
 		'recognition.intro': 'Runs entirely on this computer, nothing goes online.',
+		'gemma_missing.title': 'Gemma is missing: the text is not tidied',
+		'gemma_missing.hint': 'Format and clean up need Gemma 4 E4B, a one-time 5 GB download to this computer.',
 		'recognition.tidy.footer':
 			'For shortcuts with “Format” or “Format + Clean up”: the model lays out the text and suggests where you corrected yourself; only what is clearly a self-correction is applied. Without Gemma, the text stays as it was recognized.',
 		'recognition.boost.hint':

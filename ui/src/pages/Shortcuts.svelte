@@ -1,4 +1,5 @@
 <script lang="ts">
+	import GemmaMissing from '../components/GemmaMissing.svelte';
 	import Group from '../components/Group.svelte';
 	import Icon from '../components/Icon.svelte';
 	import Keys from '../components/Keys.svelte';
@@ -59,6 +60,8 @@
 	<h1>{t('shortcuts.title')}</h1>
 	<p class="muted">{t('shortcuts.intro')}</p>
 </header>
+
+<GemmaMissing {data} />
 
 <Group footer={t('shortcuts.footer')}>
 	{#each data.config.triggers as trigger, row (row)}

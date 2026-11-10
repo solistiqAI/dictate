@@ -1,4 +1,5 @@
 <script lang="ts">
+	import GemmaMissing from '../components/GemmaMissing.svelte';
 	import Group from '../components/Group.svelte';
 	import Row from '../components/Row.svelte';
 	import Segmented from '../components/Segmented.svelte';
@@ -48,6 +49,8 @@
 	<h1>{t('recognition.title')}</h1>
 	<p class="muted">{t('recognition.intro')}</p>
 </header>
+
+<GemmaMissing {data} />
 
 <Group title={t('recognition.model')}>
 	{#each data.models as model (model.name)}

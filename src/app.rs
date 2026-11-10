@@ -1387,6 +1387,8 @@ fn worker(
     // Its model loads in the background as soon as a shortcut corrects, and stays loaded.
     let mut correct_choice = correct_choice(&settings.config);
     let mut correct_note = prepare_correct(&correct_choice, String::new());
+    // Whether the overlay said once since start that Apple's model tidies because Gemma is missing.
+    let mut told_without_gemma = false;
     let mut cues = Cues::new(
         feedback::prepare(&asr::data_dir().join("sounds"))
             .map_err(|e| eprintln!("sounds: {e:#}"))
@@ -1592,6 +1594,11 @@ fn worker(
                 Ok(r) => {
                     recorder = Some(r);
                     live = Live::default();
+                    // Gemma downloaded while the app ran (`dictate model download`, install.sh):
+                    // it starts loading now, while the user speaks.
+                    if (correcting || formatting) && !correct::live_ready() {
+                        correct_note = prepare_correct(&correct_choice, correct_note);
+                    }
                     // Tidy up finished sentences while speaking when this shortcut corrects.
                     live.tidy = correcting && correct::live_ready();
                     if live.tidy {
@@ -1642,8 +1649,21 @@ fn worker(
                                 tidied
                             }
                         };
+                        // Gemma chosen but not there: Apple's model tidied (slower) or, off the
+                        // Mac, nothing did. Said once per start, after a paste (not over a card).
+                        let without_gemma = (correcting || formatting)
+                            && llm::find(&correct_choice).is_some()
+                            && !correct::live_ready();
                         let learn = learning.as_ref().map(|words| (words.clone(), ui.clone()));
-                        deliver(&text, settings.paste, &show, learn);
+                        let pasted = deliver(&text, settings.paste, &show, learn);
+                        if without_gemma && pasted && !told_without_gemma {
+                            told_without_gemma = true;
+                            show(Show::Note {
+                                badge: "i".into(),
+                                text: text::without_gemma().into(),
+                                seconds: 7,
+                            });
+                        }
                         let _ = ui.send_event(Ui::Transcript(text));
                         state(State::Ready, text::ready());
                     }
@@ -1807,24 +1827,24 @@ impl Cues {
 }
 
 /// Pastes into the focused text field, or, when nothing takes text, leaves the text in the
-/// clipboard and says so in the overlay.
+/// clipboard and says so in the overlay. True when it pasted (the overlay is free again).
 /// With `learn` (dictionary words, UI), the field is watched for corrections afterwards.
 fn deliver(
     text: &str,
     paste: bool,
     show: &impl Fn(Show),
     learn: Option<(Vec<String>, EventLoopProxy<Ui>)>,
-) {
+) -> bool {
     if !paste {
         println!("{text}");
         show(Show::Hide);
-        return;
+        return false;
     }
     if platform::focused_accepts_text() == Some(false) {
         show(Show::Result {
             text: text.to_string(),
         });
-        return;
+        return false;
     }
     show(Show::Hide);
     // Read the field before the paste: the text around the insertion point locates it later.
@@ -1841,11 +1861,12 @@ fn deliver(
         show(Show::Result {
             text: text.to_string(),
         });
-        return;
+        return false;
     }
     if let (Some(field), Some((words, ui))) = (field, learn) {
         watch_corrections(field, text.to_string(), words, ui);
     }
+    true
 }
 
 /// Bumped by every paste; an older watcher stops.

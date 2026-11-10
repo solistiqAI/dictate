@@ -57,7 +57,10 @@ code signing identity from your keychain, and then macOS asks again after every 
 DICTATE_SIGN_IDENTITY="Your Name Code Signing" ./scripts/install.sh
 ```
 
-Optional: `dictate model download gemma-4-e4b` (5 GB) for "Correct" and "Format"; `dictate model
+Strongly recommended: `dictate model download gemma-4-e4b` (5 GB; `install.sh` offers it) for
+"Correct" and "Format", which the default shortcut does. Without it Apple's on-device model does
+both, slower (several seconds on a long dictation instead of about half a second) and catching fewer
+self-corrections; the app says so once per start. `dictate model
 list` shows the other recognition models (CPU, int8, more languages). Something not working:
 [troubleshooting](docs/features.md#first-start).
 

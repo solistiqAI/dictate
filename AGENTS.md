@@ -139,6 +139,11 @@ No backend, no updater: Dictate is one binary in a signed `.app`, built and inst
   adds a timestamp so macOS never serves a cached icon or bundle.
 - **Model:** not part of the app; `dictate model download` once per Mac (into
   `~/Library/Application Support/dictate/models/`).
+- **Gemma, strongly recommended:** after an install check `dictate model list` for
+  `gemma-4-e4b  installed`; if it is missing, download it (`dictate model download gemma-4-e4b`,
+  5 GB, or `DICTATE_GEMMA=1 ./scripts/install.sh`) unless the user said no, and say so. Without it
+  "Formatieren"/"Korrigieren" (on in the default shortcut) run on Apple's model: several seconds on a
+  long dictation instead of about half a second. The running app takes it at the next dictation.
 - **Check after install:** `pgrep -lf Dictate.app` and the end of
   `~/Library/Application Support/dictate/dictate.log` ("model loaded", "microphone: …", "Bereit"/"Ready").
 - **Icon:** `assets/app-icon.svg` → `scripts/icon.sh` → `assets/AppIcon.icns` (commit both).
