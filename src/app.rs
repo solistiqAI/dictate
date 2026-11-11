@@ -50,7 +50,9 @@ const LIVE_EVERY: Duration = Duration::from_millis(600);
 /// How long the text field is watched for corrections after a paste, how long the pasted text
 /// must stay unchanged before a correction is learned, and how long "Rückgängig" stays.
 const LEARN_WATCH: Duration = Duration::from_secs(30);
-const LEARN_SETTLE: Duration = Duration::from_secs(3);
+const LEARN_SETTLE: Duration = Duration::from_millis(1500);
+/// How often the field is read while watching. Short, so an edit sent right away was seen.
+const LEARN_POLL: Duration = Duration::from_millis(300);
 const LEARN_STAYS: Duration = Duration::from_secs(8);
 /// How long the question for a correction with another first sound stays.
 const LEARN_ASK_STAYS: Duration = Duration::from_secs(12);
@@ -1880,7 +1882,8 @@ fn deliver(
 static WATCH: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 
 /// Watches the field after a paste for up to [`LEARN_WATCH`], until the focus moves or the next
-/// paste. Once the pasted text has stayed the same for [`LEARN_SETTLE`] (still focused) and differs
+/// paste. Once the pasted text has stayed the same for [`LEARN_SETTLE`] (still focused), or right
+/// when the field is sent or emptied after an edit that stood still for two reads, and differs
 /// from the transcript in a few words that sound alike (a mishearing, not a rewording), those
 /// corrections are learned and the overlay says so, with "Rückgängig"; close ones that begin with
 /// another sound ("Radman" → "Admin") are offered with "Merken". Only the pasted stretch is
@@ -1924,35 +1927,52 @@ fn watch_corrections(
         };
         let mut misses = 0;
         let mut gone = false;
+        // The region read twice in a row (unchanged for one poll): not a half-typed word.
+        let mut steady: Option<String> = None;
         while started.elapsed() < LEARN_WATCH && WATCH.load(Ordering::Relaxed) == generation {
-            std::thread::sleep(Duration::from_millis(700));
-            // Focus moved on (or a few failed reads in a row): the user is done with this text.
+            std::thread::sleep(LEARN_POLL);
+            // Focus moved on (or failed reads for about 2 s): the user is done with this text.
             let Some(now) = field.current_text() else {
                 misses += 1;
-                if misses >= 3 {
+                if misses >= 7 {
                     gone = true;
                     break;
                 }
                 continue;
             };
             misses = 0;
-            let Some(region) = learn::pasted_region(&field.text, field.at, &now) else {
+            let region = learn::pasted_region(&field.text, field.at, &now);
+            // Sent or emptied: the edit before it is done, so it counts without waiting.
+            if now.trim().is_empty() || region.is_some_and(|r| r.trim().is_empty()) {
+                cleared = true;
+                if let Some(done) = steady.take()
+                    && checked.as_deref() != Some(done.as_str())
+                {
+                    offer(&done);
+                    return;
+                }
+                continue;
+            }
+            cleared = false;
+            let Some(region) = region else {
                 outside = true;
+                steady = None;
                 continue; // changed outside the pasted text
             };
             outside = false;
-            // Sent or emptied: nothing to compare.
-            cleared = region.trim().is_empty();
-            if cleared {
-                continue;
-            }
             if last.as_deref() != Some(region) {
                 last = Some(region.to_string());
                 since = Instant::now();
-            } else if since.elapsed() >= LEARN_SETTLE && checked.as_deref() != Some(region) {
-                checked = Some(region.to_string());
-                if offer(region) {
-                    return;
+                steady = None;
+            } else {
+                if region.trim() != pasted.trim() {
+                    steady = Some(region.to_string());
+                }
+                if since.elapsed() >= LEARN_SETTLE && checked.as_deref() != Some(region) {
+                    checked = Some(region.to_string());
+                    if offer(region) {
+                        return;
+                    }
                 }
             }
         }
@@ -1963,11 +1983,11 @@ fn watch_corrections(
             .is_some_and(|r| r.trim() != pasted.trim() && checked.as_deref() != Some(r));
         if edited {
             let why = if cleared {
-                "the text was sent or cleared before it stood still for 3 s"
+                "the text was sent or cleared before the edit stood still"
             } else if outside {
                 "the field changed outside the pasted text too"
             } else if gone {
-                "the focus moved before the text stood still for 3 s"
+                "the focus moved before the text stood still for 1.5 s"
             } else if WATCH.load(Ordering::Relaxed) != generation {
                 "the next dictation came first"
             } else {
