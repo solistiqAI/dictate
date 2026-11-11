@@ -1883,7 +1883,7 @@ static WATCH: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0
 
 /// Watches the field after a paste for up to [`LEARN_WATCH`], until the focus moves or the next
 /// paste. Once the pasted text has stayed the same for [`LEARN_SETTLE`] (still focused), or right
-/// when the field is sent or emptied after an edit that stood still for two reads, and differs
+/// when the field is sent, emptied or gone after an edit that stood still for two reads, and differs
 /// from the transcript in a few words that sound alike (a mishearing, not a rewording), those
 /// corrections are learned and the overlay says so, with "Rückgängig"; close ones that begin with
 /// another sound ("Radman" → "Admin") are offered with "Merken". Only the pasted stretch is
@@ -1935,6 +1935,14 @@ fn watch_corrections(
             let Some(now) = field.current_text() else {
                 misses += 1;
                 if misses >= 7 {
+                    // Sending can take the field away too (a chat that rebuilds its composer):
+                    // an edit that stood still counts, as when the field is emptied.
+                    if let Some(done) = steady.take()
+                        && checked.as_deref() != Some(done.as_str())
+                    {
+                        offer(&done);
+                        return;
+                    }
                     gone = true;
                     break;
                 }
@@ -1987,7 +1995,7 @@ fn watch_corrections(
             } else if outside {
                 "the field changed outside the pasted text too"
             } else if gone {
-                "the focus moved before the text stood still for 1.5 s"
+                "the focus moved (or the field went away) before the edit stood still"
             } else if WATCH.load(Ordering::Relaxed) != generation {
                 "the next dictation came first"
             } else {
