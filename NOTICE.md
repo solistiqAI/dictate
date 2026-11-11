@@ -36,7 +36,8 @@ Dictate itself is MIT licensed (`LICENSE`). It includes or downloads the followi
 
 The eval clips in `eval/clips/` are synthetic speech made with macOS system voices (`say`).
 
-The app's icons carry the SOLISTIQ mark, a trademark of SOLISTIQ GmbH: `docs/images/logo.png`,
-`assets/app-icon.svg` and `assets/AppIcon.icns`, and the Android launcher icon
+The app's icons and the wordmark at the top of its window carry the SOLISTIQ mark, a trademark of
+SOLISTIQ GmbH: `docs/images/logo.png`, `assets/app-icon.svg` and `assets/AppIcon.icns`, the
+window's `ui/src/components/Mark.svelte`, and the Android launcher icon
 (`android/app/src/main/res/drawable/ic_launcher_foreground.xml`, `ic_launcher_monochrome.xml`). They are not covered by the MIT licence: forks and builds of their
 own use their own icons (a brand folder, `docs/teams.md`, or these files replaced).

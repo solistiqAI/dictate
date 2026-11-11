@@ -26,6 +26,13 @@
 	--sidebar-active: #146579;
 	--sidebar-active-text: #ffffff;
 	--sidebar-border: rgba(0, 0, 0, 0.08);
+	/* The SOLISTIQ mark in the wordmark (Mark.svelte): navy on the light sidebar. */
+	--mark-side: #002e41;
+	--mark-face-0: #7a98a2;
+	--mark-face-1: #5f818c;
+	--mark-face-2: #3f6672;
+	--mark-face-3: #1d4655;
+	--mark-face-4: #002e41;
 	--radius: 6px;
 	--radius-group: 10px;
 	--row-pad: 10px 14px;
@@ -59,6 +66,13 @@
 	--sidebar-active: #80c9dc;
 	--sidebar-active-text: #14272d;
 	--sidebar-border: rgba(255, 255, 255, 0.06);
+	/* The mark in the app icon's own colours on the dark sidebar. */
+	--mark-side: #fff;
+	--mark-face-0: #fff;
+	--mark-face-1: #ecf0f1;
+	--mark-face-2: #bccbcf;
+	--mark-face-3: #6f8f99;
+	--mark-face-4: #436d7a;
 	--shadow-group: 0 0 0 0.5px rgba(255, 255, 255, 0.08);
 	--key-bg: #3a3a3d;
 	--key-shadow: 0 0.5px 0 rgba(0, 0, 0, 0.6), 0 0 0 0.5px rgba(255, 255, 255, 0.1);

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import Icon from './Icon.svelte';
+	import Mark from './Mark.svelte';
 	import type { IconName } from '../lib/icons.ts';
 	import { app, send } from '../lib/bridge.svelte.ts';
 	import { i18n, t } from '../lib/i18n.svelte.ts';
@@ -36,7 +37,9 @@
 		<!-- In a browser (mock) stand-ins for the window buttons, so the page looks like the window. -->
 		{#if !window.ipc}<span class="lights" aria-hidden="true"><i></i><i></i><i></i></span>{/if}
 	</div>
-	<div class="wordmark" data-drag>dictate{#if current?.profile} <span>/ {current.profile}</span>{/if}</div>
+	<div class="wordmark" data-drag>
+		<span class="logo"><Mark /></span>dictate{#if current?.profile} <span>/ {current.profile}</span>{/if}
+	</div>
 	<nav aria-label={t('nav.label')}>
 		{#each pages as item (item.id)}
 			<button
@@ -105,7 +108,7 @@
 	.lights i:nth-child(3) {
 		background: #28c840;
 	}
-	/* "dictate / <profile name>": the name is the profile's. */
+	/* "<mark> dictate / <profile name>": the name is the profile's. */
 	.wordmark {
 		display: flex;
 		align-items: baseline;
@@ -116,7 +119,14 @@
 		letter-spacing: -1px;
 		line-height: 1;
 	}
-	.wordmark span {
+	/* The SOLISTIQ mark of the app icon (a trademark, NOTICE.md). */
+	.wordmark .logo {
+		align-self: center;
+		display: flex;
+		height: 24px;
+		margin-right: 3px;
+	}
+	.wordmark span:not(.logo) {
 		font-size: 10px;
 		letter-spacing: 1px;
 		font-weight: 500;
