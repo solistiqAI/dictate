@@ -43,6 +43,13 @@ const TIMEOUT: Duration = Duration::from_secs(30);
 /// The loaded local model, by name.
 static LOCAL: Mutex<Option<(&'static str, Llm)>> = Mutex::new(None);
 
+/// A short question to the loaded local model under its own instructions (`system`); None when
+/// none is loaded (Apple's model is not asked: too slow for a question on the side).
+pub fn ask_local(system: &str, text: &str, timeout: Duration) -> Option<anyhow::Result<String>> {
+    let local = LOCAL.lock().unwrap().clone();
+    local.map(|(_, model)| model.ask_with(system, text, timeout))
+}
+
 /// Gets the model `choice` ready (a `llm::MODELS` name, or "apple"): a local model starts loading
 /// in the background and stays loaded; Apple's needs nothing. Returns what corrections will use.
 pub fn prepare(choice: &str) -> String {

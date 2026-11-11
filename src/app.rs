@@ -53,6 +53,15 @@ const LEARN_WATCH: Duration = Duration::from_secs(30);
 const LEARN_SETTLE: Duration = Duration::from_millis(1500);
 /// How often the field is read while watching. Short, so an edit sent right away was seen.
 const LEARN_POLL: Duration = Duration::from_millis(300);
+/// For an edit seen only once before it was sent: Gemma says whether it looks finished.
+const LEARN_CHECK: &str = "You check edits to dictated text. Speech recognition may mishear \
+words; the user then fixed the text and sent it. The edited text was read once just before \
+sending, so it may have been caught while a word was still being typed. Given the dictated text, \
+the text as read and one change, answer YES if the change is most likely a finished, deliberate \
+correction (a real word or name that fits the sentence), or NO if it is most likely a word typed \
+halfway, a typo or an accident. A new word that looks like the start of a longer word which \
+would fit and sound more like the dictated one (\"Hendr\" for \"Hendrik\", \"Langs\" for \"LangSmith\") \
+is unfinished. Answer with YES or NO only.";
 const LEARN_STAYS: Duration = Duration::from_secs(8);
 /// How long the question for a correction with another first sound stays.
 const LEARN_ASK_STAYS: Duration = Duration::from_secs(12);
@@ -1925,6 +1934,48 @@ fn watch_corrections(
             });
             true
         };
+        // An edit seen in one read only, just before the field was sent or went away: it may be
+        // half typed, so nothing is learned by itself. The overlay asks ("Merken?") for each one
+        // Gemma takes for a finished correction; without Gemma it asks for all of them.
+        let offer_unsure = |region: &str| {
+            let review = learn::review(pasted.trim(), region.trim(), &words);
+            for why in &review.skipped {
+                eprintln!("learn: not learned: {why}");
+            }
+            let ask: Vec<_> = review
+                .sure
+                .into_iter()
+                .chain(review.ask)
+                .filter(|c| match unfinished(&pasted, region, &c.describe()) {
+                    Some(Ok(true)) => {
+                        eprintln!(
+                            "learn: not asked, Gemma takes it for unfinished: {}",
+                            c.describe()
+                        );
+                        false
+                    }
+                    Some(Err(e)) => {
+                        eprintln!("learn: Gemma's check failed ({e:#}), asking");
+                        true
+                    }
+                    _ => true,
+                })
+                .collect();
+            for c in &ask {
+                eprintln!("learn: asking, seen once before sending: {}", c.describe());
+            }
+            if !ask.is_empty() {
+                let _ = ui.send_event(Ui::Learn {
+                    sure: Vec::new(),
+                    ask,
+                });
+            }
+        };
+        // The last region read, and whether it was read only once (not yet steady).
+        let unsure = |last: &Option<String>, checked: &Option<String>| {
+            last.clone()
+                .filter(|r| r.trim() != pasted.trim() && checked.as_deref() != Some(r.as_str()))
+        };
         let mut misses = 0;
         let mut gone = false;
         // The region read twice in a row (unchanged for one poll): not a half-typed word.
@@ -1943,6 +1994,10 @@ fn watch_corrections(
                         offer(&done);
                         return;
                     }
+                    if let Some(once) = unsure(&last, &checked) {
+                        offer_unsure(&once);
+                        return;
+                    }
                     gone = true;
                     break;
                 }
@@ -1957,6 +2012,10 @@ fn watch_corrections(
                     && checked.as_deref() != Some(done.as_str())
                 {
                     offer(&done);
+                    return;
+                }
+                if let Some(once) = unsure(&last, &checked) {
+                    offer_unsure(&once);
                     return;
                 }
                 continue;
@@ -2004,6 +2063,18 @@ fn watch_corrections(
             eprintln!("learn: not learned: {why}");
         }
     });
+}
+
+/// Whether Gemma takes `change` in the edited `region` for a word typed halfway or an accident;
+/// None without Gemma.
+fn unfinished(pasted: &str, region: &str, change: &str) -> Option<anyhow::Result<bool>> {
+    let question = format!(
+        "Dictated: {}\nSent: {}\nChange: {change}",
+        pasted.trim(),
+        region.trim()
+    );
+    correct::ask_local(LEARN_CHECK, &question, Duration::from_secs(5))
+        .map(|answer| answer.map(|a| a.trim().to_uppercase().starts_with("NO")))
 }
 
 /// Level meter and live text while recording.
@@ -2212,6 +2283,103 @@ fn coverage(distance: f32) -> u8 {
 
 #[cfg(test)]
 mod tests {
+    /// Gemma's check of edits seen once before sending; needs the model downloaded:
+    /// `cargo test --release unfinished_edits -- --ignored --nocapture`.
+    #[test]
+    #[ignore]
+    fn unfinished_edits_by_gemma() {
+        crate::correct::prepare("gemma-4-e4b");
+        let cases = [
+            (
+                "Ich habe den Screenshot von Henrik bekommen.",
+                "Ich habe den Screenshot von Hendrik bekommen.",
+                "Henrik",
+                "Hendrik",
+                false,
+            ),
+            (
+                "Der Merch-Request sollte passen.",
+                "Der Merge-Request sollte passen.",
+                "Merch-Request",
+                "Merge-Request",
+                false,
+            ),
+            (
+                "Haben wir langsmoth traces aktiviert?",
+                "Haben wir LangSmith traces aktiviert?",
+                "langsmoth",
+                "LangSmith",
+                false,
+            ),
+            (
+                "Ich habe den Screenshot von Henrik bekommen.",
+                "Ich habe den Screenshot von Hendr bekommen.",
+                "Henrik",
+                "Hendr",
+                true,
+            ),
+            (
+                "Haben wir langsmoth traces aktiviert?",
+                "Haben wir Langs traces aktiviert?",
+                "langsmoth",
+                "Langs",
+                true,
+            ),
+            (
+                "Kannst du das deployen?",
+                "Kannst du das deplo?",
+                "deployen",
+                "deplo",
+                true,
+            ),
+            (
+                "Wie kommt das Backend an Keychlock?",
+                "Wie kommt das Backend an Keycloak?",
+                "Keychlock",
+                "Keycloak",
+                false,
+            ),
+            (
+                "Wie kommt das Backend an Keychlock?",
+                "Wie kommt das Backend an Keycl?",
+                "Keychlock",
+                "Keycl",
+                true,
+            ),
+            (
+                "Ist das schon auf Prot gesetzt?",
+                "Ist das schon auf Prod gesetzt?",
+                "Prot",
+                "Prod",
+                false,
+            ),
+            (
+                "Läuft das im Kubanetes Cluster?",
+                "Läuft das im Kuber Cluster?",
+                "Kubanetes",
+                "Kuber",
+                true,
+            ),
+            (
+                "Läuft das im Kubanetes Cluster?",
+                "Läuft das im Kubernetes Cluster?",
+                "Kubanetes",
+                "Kubernetes",
+                false,
+            ),
+        ];
+        let mut wrong = 0;
+        for (pasted, region, heard, meant, expected) in cases {
+            let change = crate::text::quoted_change(heard, meant);
+            let got = super::unfinished(pasted, region, &change)
+                .expect("gemma-4-e4b loaded")
+                .unwrap();
+            println!("{change}: unfinished {got} (expected {expected})");
+            wrong += usize::from(got != expected);
+        }
+        assert_eq!(wrong, 0);
+    }
+
     use super::*;
 
     #[test]

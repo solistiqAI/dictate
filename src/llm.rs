@@ -95,6 +95,8 @@ fn fetch(model: &TextModel, target: &std::path::Path) -> Result<()> {
 
 struct Request {
     texts: Vec<String>,
+    /// Other standing instructions for this one request (one text), instead of the cached ones.
+    system: Option<String>,
     reply: Sender<Result<Vec<String>>>,
 }
 
@@ -123,12 +125,30 @@ impl Llm {
         self.tx
             .send(Request {
                 texts: texts.to_vec(),
+                system: None,
                 reply,
             })
             .map_err(|_| anyhow!("model thread ended"))?;
         answer
             .recv_timeout(timeout)
             .map_err(|_| anyhow!("no answer within {} s", timeout.as_secs()))?
+    }
+
+    /// One answer under other instructions than the model's standing ones, for a short question
+    /// on the side; the cached instructions stay as they are.
+    pub fn ask_with(&self, system: &str, text: &str, timeout: Duration) -> Result<String> {
+        let (reply, answer) = channel();
+        self.tx
+            .send(Request {
+                texts: vec![text.to_string()],
+                system: Some(system.to_string()),
+                reply,
+            })
+            .map_err(|_| anyhow!("model thread ended"))?;
+        let answers = answer
+            .recv_timeout(timeout)
+            .map_err(|_| anyhow!("no answer within {} s", timeout.as_secs()))??;
+        Ok(answers.into_iter().next().unwrap_or_default())
     }
 }
 
@@ -186,7 +206,10 @@ fn run(model: &'static TextModel, system: &str, rx: &Receiver<Request>) {
             Err(RecvTimeoutError::Disconnected) => break,
         };
         let answer = match &mut engine {
-            Ok(engine) => engine.answer_all(&request.texts),
+            Ok(engine) => match &request.system {
+                Some(system) => engine.answer_alone(system, &request.texts.concat()),
+                None => engine.answer_all(&request.texts),
+            },
             Err(e) => Err(anyhow!("{e:#}")),
         };
         let _ = request.reply.send(answer);
@@ -313,6 +336,49 @@ impl<'m> Engine<'m> {
             answers.extend(self.answer_group(group)?);
         }
         Ok(answers)
+    }
+
+    /// One text under its own instructions, in sequence 1 from the start (sequence 0 keeps the
+    /// cached instructions; the others are cleared before every batch anyway). Short answers only.
+    fn answer_alone(&mut self, system: &str, text: &str) -> Result<Vec<String>> {
+        const SEQ: i32 = 1;
+        const LIMIT: usize = 32;
+        self.context
+            .clear_kv_cache_seq(Some(SEQ as u32), None, None)?;
+        let tokens = self.tokens(&format!(
+            "<bos><|turn>system\n{}<turn|>\n<|turn>user\n{}<turn|>\n<|turn>model\n",
+            system.trim(),
+            text.trim()
+        ));
+        if self.prefix + tokens.len() + LIMIT > CONTEXT as usize {
+            bail!("text too long for the model");
+        }
+        let mut batch = LlamaBatch::new(tokens.len().max(1), 1);
+        for (i, token) in tokens.iter().enumerate() {
+            batch.add(*token, i as i32, &[SEQ], i + 1 == tokens.len())?;
+        }
+        self.context.decode(&mut batch)?;
+        let mut at = batch.n_tokens() - 1;
+        let mut sampler = LlamaSampler::greedy();
+        let vocab = self.model.vocab();
+        let mut out: Vec<u8> = Vec::new();
+        for pos in (tokens.len()..).take(LIMIT) {
+            let token = sampler.sample(&self.context, at);
+            if vocab.is_eog(token) {
+                break;
+            }
+            out.extend(vocab.token_to_piece(token, true, None));
+            if out.ends_with(b"<turn|>") {
+                break;
+            }
+            batch.clear();
+            batch.add(token, pos as i32, &[SEQ], true)?;
+            at = 0;
+            self.context.decode(&mut batch)?;
+        }
+        self.context
+            .clear_kv_cache_seq(Some(SEQ as u32), None, None)?;
+        Ok(vec![clean(&String::from_utf8_lossy(&out))])
     }
 
     /// Up to `SEQUENCES` texts, greedy, side by side: sequence `s` answers `texts[s]`.
