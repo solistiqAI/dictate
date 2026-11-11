@@ -99,6 +99,9 @@ enum Command {
         /// As a learned correction with "Rückgängig".
         #[arg(long)]
         learn: bool,
+        /// As the question about a correction, with "Nicht merken" / "Merken".
+        #[arg(long)]
+        ask: bool,
         /// With "Einstellungen" and "Souffleur" beside the pill, as while recording; a time
         /// (e.g. 12:03) as while the Souffleur runs.
         #[arg(long, num_args = 0..=1, default_missing_value = "")]
@@ -409,17 +412,34 @@ fn main() -> Result<()> {
             text,
             actions,
             learn,
+            ask,
             strike,
             shortcuts,
-        }) => overlay_preview(
-            &out,
-            symbol.as_deref(),
-            &text,
-            actions,
-            learn,
-            &strike,
-            shortcuts.as_deref(),
-        ),
+        }) => {
+            let buttons: &[(&str, isize)] = if learn {
+                &[(text::undo(), overlay::UNDO)]
+            } else if ask {
+                &[
+                    (text::dont_remember(), overlay::CLOSE),
+                    (text::remember(), overlay::REMEMBER),
+                ]
+            } else if actions {
+                &[
+                    (text::copy(), overlay::COPY),
+                    (text::close(), overlay::CLOSE),
+                ]
+            } else {
+                &[]
+            };
+            overlay_preview(
+                &out,
+                symbol.as_deref(),
+                &text,
+                buttons,
+                &strike,
+                shortcuts.as_deref(),
+            )
+        }
         Some(Command::BarPreview {
             out,
             recording,
@@ -723,8 +743,7 @@ fn overlay_preview(
     out: &std::path::Path,
     symbol: Option<&str>,
     text: &str,
-    actions: bool,
-    learn: bool,
+    buttons: &[(&str, isize)],
     strike: &[String],
     shortcuts: Option<&str>,
 ) -> Result<()> {
@@ -733,16 +752,6 @@ fn overlay_preview(
     let left = match symbol {
         Some(symbol) => overlay::Left::Symbol(symbol),
         None => overlay::Left::Meter(&levels),
-    };
-    let buttons: &[(&str, isize)] = if learn {
-        &[(text::undo(), overlay::UNDO)]
-    } else if actions {
-        &[
-            (text::copy(), overlay::COPY),
-            (text::close(), overlay::CLOSE),
-        ]
-    } else {
-        &[]
     };
     // Words "Korrigieren" takes out while recording, as the overlay draws them.
     let struck: Vec<std::ops::Range<usize>> = strike
@@ -782,8 +791,7 @@ fn overlay_preview(
     _: &std::path::Path,
     _: Option<&str>,
     _: &str,
-    _: bool,
-    _: bool,
+    _: &[(&str, isize)],
     _: &[String],
     _: Option<&str>,
 ) -> Result<()> {

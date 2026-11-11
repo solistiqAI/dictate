@@ -150,6 +150,7 @@ texts! {
     learned => "Gelernt", "Learned";
     remember_question => "Merken?", "Remember?";
     remember => "Merken", "Remember";
+    dont_remember => "Nicht merken", "Don't remember";
     settings => "Einstellungen", "Settings";
 
     // The bar at the bottom of the screen.

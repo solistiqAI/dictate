@@ -263,6 +263,8 @@ pub fn run(settings: Settings) -> Result<()> {
         {
             o.hide();
             hide_overlay_at = None;
+            // A question left unanswered: nothing learned, nothing left for a later click.
+            offered.clear();
         }
         let wake = hide_overlay_at.unwrap_or(now + Duration::from_secs(1));
         *control_flow = ControlFlow::WaitUntil(wake.min(now + Duration::from_secs(1)));
@@ -433,6 +435,7 @@ pub fn run(settings: Settings) -> Result<()> {
             Event::UserEvent(Ui::Overlay(show)) => {
                 let Some(o) = &overlay else { return };
                 hide_overlay_at = None;
+                offered.clear();
                 match show {
                     Show::Live {
                         levels,
@@ -539,6 +542,10 @@ pub fn run(settings: Settings) -> Result<()> {
                         }
                     }
                     _ => {
+                        // "Nicht merken" on the question: nothing is learned.
+                        for c in std::mem::take(&mut offered) {
+                            eprintln!("learn: not learned, declined: {}", c.describe());
+                        }
                         o.hide();
                         hide_overlay_at = None;
                     }
@@ -557,7 +564,10 @@ pub fn run(settings: Settings) -> Result<()> {
                         mtm,
                         Left::Symbol(text::remember_question()),
                         &format!("{}{more}", first.describe()),
-                        &[(text::remember(), overlay::REMEMBER)],
+                        &[
+                            (text::dont_remember(), overlay::CLOSE),
+                            (text::remember(), overlay::REMEMBER),
+                        ],
                     );
                     offered = ask;
                     hide_overlay_at = Some(Instant::now() + LEARN_ASK_STAYS);
