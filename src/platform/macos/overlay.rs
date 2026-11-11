@@ -82,6 +82,8 @@ pub struct Overlay {
     shortcuts: std::cell::Cell<bool>,
     /// The running Souffleur's time ("12:03"), shown on its capsule.
     meeting: std::cell::RefCell<Option<String>>,
+    /// The usable area of the screen it was put on when it appeared; it stays there until hidden.
+    screen: std::cell::Cell<Option<NSRect>>,
     _target: Retained<Target>,
 }
 
@@ -218,6 +220,7 @@ impl Overlay {
             sides,
             shortcuts: std::cell::Cell::new(false),
             meeting: std::cell::RefCell::new(None),
+            screen: std::cell::Cell::new(None),
             _target: target,
         }
     }
@@ -239,11 +242,15 @@ impl Overlay {
         struck: &[std::ops::Range<usize>],
         buttons: &[(&str, isize)],
     ) {
+        let appears = !self.panel.isVisible();
+        if appears {
+            self.screen.set(place(mtm));
+        }
         self.set_left(left);
         self.layout(mtm, text, struck, buttons);
         self.panel
             .setIgnoresMouseEvents(buttons.is_empty() && !self.shortcuts.get());
-        if !self.panel.isVisible() {
+        if appears {
             self.panel.orderFrontRegardless();
         }
     }
@@ -414,19 +421,71 @@ impl Overlay {
             button.setFrame(NSRect::new(NSPoint::new(0.0, 0.0), NSSize::new(w, SIDE_H)));
         }
 
-        let origin = match NSScreen::mainScreen(mtm) {
-            Some(screen) => {
-                let visible = screen.visibleFrame();
-                NSPoint::new(
-                    visible.origin.x + (visible.size.width - WIDTH) / 2.0,
-                    visible.origin.y + 56.0,
-                )
-            }
+        let visible = self
+            .screen
+            .get()
+            .or_else(|| NSScreen::mainScreen(mtm).map(|s| s.visibleFrame()));
+        let origin = match visible {
+            Some(visible) => NSPoint::new(
+                visible.origin.x + (visible.size.width - WIDTH) / 2.0,
+                visible.origin.y + 56.0,
+            ),
             None => self.panel.frame().origin,
         };
         self.panel
             .setFrame_display(NSRect::new(origin, NSSize::new(WIDTH, height)), true);
     }
+}
+
+/// The screen to show the overlay on, as its usable area: the one holding most of the focused
+/// window (where you look while you dictate), else the mouse's, else AppKit's main screen. Said
+/// in the log with the time, so a missing overlay can be told apart from one on another screen.
+fn place(mtm: MainThreadMarker) -> Option<NSRect> {
+    let screens = NSScreen::screens(mtm);
+    let main_height = screens.firstObject()?.frame().size.height;
+    let overlap = |s: &NSScreen, (x, y, w, h): (f64, f64, f64, f64)| {
+        let f = s.frame();
+        // Accessibility counts from the top left of the main screen, AppKit from its bottom left.
+        let bottom = main_height - (y + h);
+        let wide = (x + w).min(f.origin.x + f.size.width) - x.max(f.origin.x);
+        let high = (bottom + h).min(f.origin.y + f.size.height) - bottom.max(f.origin.y);
+        wide.max(0.0) * high.max(0.0)
+    };
+    let focused = crate::platform::focused_window();
+    let by_window = focused.as_ref().and_then(|(_, frame)| {
+        screens
+            .iter()
+            .map(|s| (overlap(&s, *frame), s))
+            .filter(|(area, _)| *area > 0.0)
+            .max_by(|a, b| a.0.total_cmp(&b.0))
+            .map(|(_, s)| s)
+    });
+    let mouse = objc2_app_kit::NSEvent::mouseLocation();
+    let by_mouse = || {
+        screens.iter().find(|s| {
+            let f = s.frame();
+            (f.origin.x..f.origin.x + f.size.width).contains(&mouse.x)
+                && (f.origin.y..f.origin.y + f.size.height).contains(&mouse.y)
+        })
+    };
+    let (screen, how) = match by_window {
+        Some(s) => (
+            s,
+            format!("window of {}", focused.map_or_else(String::new, |f| f.0)),
+        ),
+        None => match by_mouse() {
+            Some(s) => (s, "mouse".to_string()),
+            None => (NSScreen::mainScreen(mtm)?, "main screen".to_string()),
+        },
+    };
+    let visible = screen.visibleFrame();
+    eprintln!(
+        "{} overlay on {} ({how}, {} screens)",
+        crate::history::log_time(),
+        screen.localizedName(),
+        screens.len()
+    );
+    Some(visible)
 }
 
 /// `text` in the card's font and `color`, the `struck` byte ranges dimmed and struck through.

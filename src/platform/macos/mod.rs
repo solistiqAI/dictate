@@ -131,6 +131,7 @@ unsafe extern "C" {
         parameter: CFTypeRef,
         value: *mut CFTypeRef,
     ) -> i32;
+    fn AXUIElementSetMessagingTimeout(element: CFTypeRef, seconds: f32) -> i32;
     fn AXIsProcessTrustedWithOptions(options: CFDictionaryRef) -> bool;
     fn AXValueGetValue(value: CFTypeRef, kind: u32, out: *mut c_void) -> bool;
     fn AXValueGetTypeID() -> core_foundation::base::CFTypeID;
@@ -466,6 +467,44 @@ fn frontmost_name() -> String {
         .and_then(|app| app.localizedName())
         .map_or_else(|| "?".to_string(), |name| name.to_string())
 }
+
+/// The frontmost app's focused window: the app's name and the window's frame in points from the
+/// top left of the main screen `(x, y, width, height)`, as Accessibility reports it. Asks with a
+/// short timeout, so a hung app costs the caller (the overlay, on the main thread) little.
+pub fn focused_window() -> Option<(String, (f64, f64, f64, f64))> {
+    let pid = objc2_app_kit::NSWorkspace::sharedWorkspace()
+        .frontmostApplication()
+        .map(|app| app.processIdentifier())?;
+    let app = unsafe { CFType::wrap_under_create_rule(AXUIElementCreateApplication(pid)) };
+    unsafe { AXUIElementSetMessagingTimeout(app.as_CFTypeRef(), 0.25) };
+    let window = attribute(&app, "AXFocusedWindow")?;
+    let mut origin = core_graphics::geometry::CGPoint::new(0.0, 0.0);
+    let mut size = core_graphics::geometry::CGSize::new(0.0, 0.0);
+    let value = |name: &str, kind: u32, out: *mut c_void| {
+        attribute(&window, name).is_some_and(|v| {
+            v.type_of() == unsafe { AXValueGetTypeID() }
+                && unsafe { AXValueGetValue(v.as_CFTypeRef(), kind, out) }
+        })
+    };
+    let found = value(
+        "AXPosition",
+        AX_VALUE_CG_POINT,
+        (&mut origin as *mut core_graphics::geometry::CGPoint).cast(),
+    ) && value(
+        "AXSize",
+        AX_VALUE_CG_SIZE,
+        (&mut size as *mut core_graphics::geometry::CGSize).cast(),
+    );
+    (found && size.width > 0.0 && size.height > 0.0).then(|| {
+        (
+            frontmost_name(),
+            (origin.x, origin.y, size.width, size.height),
+        )
+    })
+}
+
+const AX_VALUE_CG_POINT: u32 = 1;
+const AX_VALUE_CG_SIZE: u32 = 2;
 
 /// `kAXErrorNoValue`: the attribute has no value, here: nothing has the focus.
 const AX_ERROR_NO_VALUE: i32 = -25212;

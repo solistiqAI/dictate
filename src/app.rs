@@ -1337,7 +1337,7 @@ fn worker(
     ui: EventLoopProxy<Ui>,
 ) {
     let state = |state: State, text: &str| {
-        eprintln!("{text}");
+        eprintln!("{} {text}", crate::history::log_time());
         crate::local::READY.store(
             matches!(state, State::Ready | State::Recording | State::Transcribing),
             std::sync::atomic::Ordering::Relaxed,

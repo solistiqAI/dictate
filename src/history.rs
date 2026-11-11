@@ -128,6 +128,17 @@ pub fn from_log(log: &str) -> Vec<String> {
         .collect()
 }
 
+/// "2026-11-11 08:52:29" in local time, for the log.
+pub fn log_time() -> String {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0.0, |d| d.as_secs_f64());
+    let (year, month, day, hour, minute) = crate::platform::local_time(now);
+    // Time zones are whole minutes off UTC, so the seconds are UTC's.
+    let second = now as u64 % 60;
+    format!("{year}-{month:02}-{day:02} {hour:02}:{minute:02}:{second:02}")
+}
+
 pub fn now() -> i64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
