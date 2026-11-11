@@ -1957,15 +1957,15 @@ fn watch_corrections(
                 .into_iter()
                 .chain(review.ask)
                 .filter(|c| match unfinished(&pasted, region, &c.describe()) {
-                    Some(Ok(true)) => {
+                    Some((model, Ok(true))) => {
                         eprintln!(
-                            "learn: not asked, Gemma takes it for unfinished: {}",
+                            "learn: not asked, learn check ({model}) says unfinished: {}",
                             c.describe()
                         );
                         false
                     }
-                    Some(Err(e)) => {
-                        eprintln!("learn: Gemma's check failed ({e:#}), asking");
+                    Some((model, Err(e))) => {
+                        eprintln!("learn: learn check ({model}) failed ({e:#}), asking");
                         true
                     }
                     _ => true,
@@ -2075,16 +2075,24 @@ fn watch_corrections(
     });
 }
 
-/// Whether Gemma takes `change` in the edited `region` for a word typed halfway or an accident;
-/// None without Gemma.
-fn unfinished(pasted: &str, region: &str, change: &str) -> Option<anyhow::Result<bool>> {
+/// The learn check: whether the local text model (Gemma) takes `change` in the edited `region`
+/// for a word typed halfway or an accident, with the model's name; None without one.
+fn unfinished(
+    pasted: &str,
+    region: &str,
+    change: &str,
+) -> Option<(&'static str, anyhow::Result<bool>)> {
     let question = format!(
         "Dictated: {}\nSent: {}\nChange: {change}",
         pasted.trim(),
         region.trim()
     );
-    correct::ask_local(LEARN_CHECK, &question, Duration::from_secs(5))
-        .map(|answer| answer.map(|a| a.trim().to_uppercase().starts_with("NO")))
+    correct::ask_local(LEARN_CHECK, &question, Duration::from_secs(5)).map(|(model, answer)| {
+        (
+            model,
+            answer.map(|a| a.trim().to_uppercase().starts_with("NO")),
+        )
+    })
 }
 
 /// Level meter and live text while recording.
@@ -2383,6 +2391,7 @@ mod tests {
             let change = crate::text::quoted_change(heard, meant);
             let got = super::unfinished(pasted, region, &change)
                 .expect("gemma-4-e4b loaded")
+                .1
                 .unwrap();
             println!("{change}: unfinished {got} (expected {expected})");
             wrong += usize::from(got != expected);
