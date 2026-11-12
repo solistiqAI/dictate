@@ -620,8 +620,8 @@ fn souffleur(file: &std::path::Path, model: Option<String>) -> Result<()> {
                     println!("[{t:5.1}s]    problem: {}", s.problem);
                 }
             }
-            meeting::Update::Ended(reason) => {
-                println!("[{t:5.1}s] ended {}", reason.unwrap_or_default())
+            meeting::Update::Ended { problem, .. } => {
+                println!("[{t:5.1}s] ended {}", problem.unwrap_or_default())
             }
             _ => {}
         }
@@ -629,7 +629,7 @@ fn souffleur(file: &std::path::Path, model: Option<String>) -> Result<()> {
     let (done_tx, done_rx) = std::sync::mpsc::channel();
     let sink2 = sink.clone();
     let sink: meeting::Sink = Arc::new(move |update| {
-        let ended = matches!(update, meeting::Update::Ended(_));
+        let ended = matches!(update, meeting::Update::Ended { .. });
         sink2(update);
         if ended {
             let _ = done_tx.send(());
@@ -641,6 +641,7 @@ fn souffleur(file: &std::path::Path, model: Option<String>) -> Result<()> {
             replacements: asr::data_dir().join("replacements.txt"),
             folder: std::env::temp_dir().join("dictate-souffleur"),
             replay: Some(file.to_path_buf()),
+            resume: None,
         },
         sink,
     );

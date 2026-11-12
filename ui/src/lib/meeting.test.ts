@@ -27,7 +27,16 @@ test('same id replaces, new id appends, nothing before the snapshot', () => {
 		lines: [line(0, 'Hallo'), line(1, 'Wie', true)],
 		cards: [],
 		highlights: [],
-		status: { agent: 'listening', activity: '', mic_db: null, system_db: null, system_audio: 'off', problem: '' }
+		resumable: false,
+		status: {
+			agent: 'listening',
+			activity: '',
+			mic_db: null,
+			system_db: null,
+			system_audio: 'off',
+			problem: '',
+			ending: false
+		}
 	};
 	applyMeeting(meeting, { type: 'meeting_line', line: line(1, 'Wie geht es?') });
 	applyMeeting(meeting, { type: 'meeting_line', line: line(2, 'Gut', true) });
@@ -44,7 +53,16 @@ test('empty line and empty finished card are removed', () => {
 		lines: [{ id: 0, who: 'me', at: 0, text: 'Echo', live: true }],
 		cards: [{ id: 4, at: 0, title: 'Entwurf', body: '…', question: null, pending: true }],
 		highlights: [],
-		status: { agent: 'listening', activity: '', mic_db: null, system_db: null, system_audio: 'off', problem: '' }
+		resumable: false,
+		status: {
+			agent: 'listening',
+			activity: '',
+			mic_db: null,
+			system_db: null,
+			system_audio: 'off',
+			problem: '',
+			ending: false
+		}
 	};
 	applyMeeting(meeting, { type: 'meeting_line', line: { id: 0, who: 'me', at: 0, text: '', live: false } });
 	applyMeeting(meeting, { type: 'meeting_card', card: { id: 4, at: 0, title: '', body: '', question: null, pending: false } });

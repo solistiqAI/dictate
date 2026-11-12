@@ -187,6 +187,8 @@ export function createMock(receive: (event: Event) => void): (request: Request) 
 				return meeting.start();
 			case 'stop_meeting':
 				return meeting.stop();
+			case 'resume_meeting':
+				return meeting.resume();
 			case 'ask_meeting':
 				return meeting.ask(request.text);
 			case 'open_panel': {

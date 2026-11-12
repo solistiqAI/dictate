@@ -54,6 +54,8 @@ pub enum Request {
     /// Souffleur: start listening (opens the side panel), stop.
     StartMeeting,
     StopMeeting,
+    /// "Fortsetzen": the meeting that stopped last goes on (same transcript, same agent).
+    ResumeMeeting,
     /// A question typed in the side panel, straight to the agent.
     AskMeeting {
         text: String,
@@ -139,6 +141,9 @@ pub struct MeetingView {
     /// "Das Wichtigste" so far: short Markdown lines, the most important first.
     #[serde(default)]
     pub highlights: Vec<String>,
+    /// Stopped, and it can go on ("Fortsetzen").
+    #[serde(default)]
+    pub resumable: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -179,6 +184,9 @@ pub struct MeetingStatus {
     pub system_audio: String,
     /// Shown in the panel when not empty.
     pub problem: String,
+    /// Asked to stop: the last words and the final key facts are still being done.
+    #[serde(default)]
+    pub ending: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

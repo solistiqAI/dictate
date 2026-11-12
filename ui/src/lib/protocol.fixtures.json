@@ -44,6 +44,7 @@
 		{ "type": "drag" },
 		{ "type": "start_meeting" },
 		{ "type": "stop_meeting" },
+		{ "type": "resume_meeting" },
 		{ "type": "ask_meeting", "text": "Wann war der letzte Call mit Nordlicht?" },
 		{ "type": "open_panel" },
 		{ "type": "open_page", "page": "meeting" },
@@ -135,9 +136,11 @@
 					"mic_db": -38.5,
 					"system_db": null,
 					"system_audio": "off",
-					"problem": ""
+					"problem": "",
+					"ending": false
 				},
-				"highlights": ["Nordlicht: Pilot läuft seit 12.10., **Go-live 1.12.**"]
+				"highlights": ["Nordlicht: Pilot läuft seit 12.10., **Go-live 1.12.**"],
+				"resumable": false
 			}
 		},
 		{ "type": "meeting_line", "line": { "id": 3, "who": "me", "at": 1793526500.0, "text": "Genau, und", "live": true } },
@@ -153,7 +156,8 @@
 				"mic_db": -41.0,
 				"system_db": -30.5,
 				"system_audio": "on",
-				"problem": ""
+				"problem": "",
+				"ending": true
 			}
 		},
 		{

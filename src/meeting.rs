@@ -35,15 +35,25 @@ const FINAL_PROMPT: &str = include_str!("meeting-final-prompt.txt");
 const FINAL_TIMEOUT: Duration = Duration::from_secs(120);
 /// The first message, before anyone speaks: load the tools a lookup needs most (the profile's
 /// `warmup_tools`; their schemas are deferred, fetching them costs a round trip in the first
-/// lookup otherwise), then wait.
-fn warmup(tools: &[String]) -> String {
-    if tools.is_empty() {
-        return "Das Meeting beginnt gleich. Such nichts und antworte nur mit -".into();
-    }
+/// lookup otherwise), then find the meeting in the calendar, if a tool reads one: who is in it
+/// helps with every name said later.
+fn warmup(tools: &[String], now: &str) -> String {
+    let load = if tools.is_empty() {
+        String::new()
+    } else {
+        format!(
+            " Lade zuerst mit ToolSearch die Werkzeuge, die du am häufigsten brauchst (select:{}).",
+            tools.join(",")
+        )
+    };
     format!(
-        "Das Meeting beginnt gleich. Lade jetzt mit ToolSearch die Werkzeuge, die du am \
-         häufigsten brauchst (select:{}), such nichts, und antworte dann nur mit -",
-        tools.join(",")
+        "Das Meeting beginnt gleich, jetzt ist {now}.{load} Wenn eines deiner Werkzeuge den \
+         Kalender der Person liest: such den Termin, der gerade läuft oder in den nächsten 15 \
+         Minuten beginnt, und gib eine Karte dazu: Titel, wer teilnimmt (mit Firma), worum es \
+         laut Beschreibung geht, und mit einer oder zwei schnellen Suchen, was deine Quellen über \
+         die Teilnehmenden von außen und ihre Firma wissen (Stand, letzter Kontakt, offene \
+         Punkte). Merk dir die Namen für später. Ohne Kalender oder ohne Termin: such nichts \
+         weiter und antworte nur mit -"
     )
 }
 /// How often the sources are read, levels sent, live text refreshed.
@@ -51,9 +61,21 @@ const TICK: Duration = Duration::from_millis(100);
 const STATUS_EVERY: Duration = Duration::from_millis(250);
 const LIVE_EVERY: Duration = Duration::from_millis(900);
 /// Lines go to the agent once it is free and someone paused this long (or a question was asked,
-/// or a lot was said).
+/// or a lot was said) …
 const FEED_PAUSE: Duration = Duration::from_millis(1200);
 const FEED_WORDS: usize = 40;
+/// … but a few words ("So", "Genau", "Um") wait for more or for a longer pause: every turn
+/// re-reads the agent's whole context, half the turns of a real meeting were such scraps.
+const FEED_MIN_WORDS: usize = 12;
+const FEED_LONG_PAUSE: Duration = Duration::from_secs(5);
+
+/// Whether the unsent lines go to the agent now (it is free).
+fn feed_now(words: usize, asked: bool, paused: Duration) -> bool {
+    asked
+        || words >= FEED_WORDS
+        || (paused >= FEED_PAUSE && words >= FEED_MIN_WORDS)
+        || paused >= FEED_LONG_PAUSE
+}
 
 // Read access to the profile's `souffleur.allowed_tools` goes without asking: the meeting is
 // live, a permission check per lookup costs seconds. Everything else follows the user's own
@@ -71,8 +93,24 @@ pub enum Update {
     Status(MeetingStatus),
     /// "Das Wichtigste": the agent's new list of the meeting's key facts.
     Highlights(Vec<String>),
-    /// The meeting stopped (the reason when it was not asked to).
-    Ended(Option<String>),
+    /// The meeting stopped: the reason when it was not asked to, and what "Fortsetzen" needs.
+    Ended {
+        problem: Option<String>,
+        resume: Option<Resume>,
+    },
+}
+
+/// What a stopped meeting needs to go on ("Fortsetzen"): its transcript, the agent's
+/// conversation, the key facts and how far the numbering of lines and cards got.
+#[derive(Clone, Debug)]
+pub struct Resume {
+    pub transcript: PathBuf,
+    /// Claude Code's session id: `--resume` brings back everything the agent knew.
+    pub session: Option<String>,
+    pub highlights: Vec<String>,
+    pub lines: usize,
+    pub cards: usize,
+    pub started: f64,
 }
 
 pub type Sink = Arc<dyn Fn(Update) + Send + Sync>;
@@ -85,6 +123,8 @@ pub struct Setup {
     /// `dictate souffleur <wav>`: this recording plays as "Andere" in real time instead of the
     /// microphone and the Mac's sound; the meeting ends after it.
     pub replay: Option<PathBuf>,
+    /// "Fortsetzen": the meeting before goes on (same transcript, same agent).
+    pub resume: Option<Resume>,
 }
 
 /// A running meeting; dropping it stops it.
@@ -212,14 +252,14 @@ pub fn start(setup: Setup, sink: Sink) -> Handle {
     {
         let stop = stop.clone();
         std::thread::spawn(move || {
-            let reason = match run(setup, sink.clone(), asked, &stop) {
-                Ok(()) => None,
+            let (problem, resume) = match run(setup, sink.clone(), asked, &stop) {
+                Ok(resume) => (None, resume),
                 Err(e) => {
                     eprintln!("souffleur: {e:#}");
-                    Some(format!("{e:#}"))
+                    (Some(format!("{e:#}")), None)
                 }
             };
-            sink(Update::Ended(reason));
+            sink(Update::Ended { problem, resume });
         });
     }
     Handle { stop, asks }
@@ -633,6 +673,31 @@ impl Transcript {
         t
     }
 
+    /// "Fortsetzen": the transcript of the meeting before, without its closing key facts (they
+    /// come again at the new end), a note when it went on, and more lines after it.
+    fn reopen(path: &Path, at: f64) -> Self {
+        // The tidy pass of the part before rewrites the file: it finishes first.
+        if let Some(tidying) = TIDYING.lock().unwrap().take() {
+            let _ = tidying.join();
+        }
+        let text = std::fs::read_to_string(path).unwrap_or_default();
+        let file = std::fs::write(path, without_closing_highlights(&text))
+            .and_then(|_| std::fs::OpenOptions::new().append(true).open(path))
+            .map_err(|e| eprintln!("souffleur: transcript {}: {e}", path.display()))
+            .ok();
+        let mut t = Transcript {
+            file,
+            path: path.to_path_buf(),
+        };
+        t.write(&format!(
+            "*{} {}*\n\n",
+            crate::text::pick("Fortgesetzt", "Resumed"),
+            clock(at)
+        ));
+        eprintln!("souffleur: transcript {} (resumed)", path.display());
+        t
+    }
+
     fn write(&mut self, text: &str) {
         if let Some(f) = &mut self.file {
             let _ = f.write_all(text.as_bytes());
@@ -679,6 +744,20 @@ impl Transcript {
         self.write(&text);
     }
 }
+
+/// The transcript without the "Das Wichtigste" written at its end (nothing follows it there).
+fn without_closing_highlights(text: &str) -> &str {
+    let heading = format!("## {}\n", highlights_heading());
+    match text.rfind(&heading) {
+        Some(at) if (at == 0 || text[..at].ends_with('\n')) && !text[at..].contains("\n**") => {
+            &text[..at]
+        }
+        _ => text,
+    }
+}
+
+/// The tidy pass of the meeting that ended last, while it runs ("Fortsetzen" waits for it).
+static TIDYING: Mutex<Option<std::thread::JoinHandle<()>>> = Mutex::new(None);
 
 /// The transcript's lines ("**12:03 Andere:** …") with self-corrections and false starts taken
 /// out by Gemma ("Korrigieren", deletions only and checked as when dictating), all lines in one
@@ -788,6 +867,8 @@ struct Shared {
     highlights: Mutex<Vec<String>>,
     /// The meeting is ending: the agent's exit is no problem.
     stopping: AtomicBool,
+    /// The agent's Claude Code session, for "Fortsetzen".
+    session: Mutex<Option<String>>,
 }
 
 impl Shared {
@@ -891,7 +972,8 @@ struct Agent {
 }
 
 impl Agent {
-    fn start(config: &Config, shared: Arc<Shared>) -> Result<Self> {
+    /// A new agent, or with `session` the one of the meeting before ("Fortsetzen").
+    fn start(config: &Config, shared: Arc<Shared>, session: Option<&str>) -> Result<Self> {
         let binary = claude_binary().ok_or_else(|| {
             anyhow!(
                 "{}",
@@ -902,6 +984,7 @@ impl Agent {
             )
         })?;
         let path = agent_path();
+        let souffleur = crate::profile::current().souffleur.clone();
         let mut command = Command::new(&binary);
         command
             .args([
@@ -914,8 +997,16 @@ impl Agent {
             .args(["--verbose", "--include-partial-messages"])
             .args(["--model", config.meeting_model.trim()])
             .args(["--append-system-prompt", &prompt(config)])
+            // Only the built-in tools it may use: the others' descriptions were a third of the
+            // context every turn re-reads.
+            .args(["--tools", &souffleur.builtin_tools()]);
+        if let Some(session) = session {
+            command.args(["--resume", session]);
+        }
+        command
+            // Last: the list takes every argument after it.
             .arg("--allowedTools")
-            .args(&crate::profile::current().souffleur.allowed_tools)
+            .args(&souffleur.allowed_tools)
             .current_dir(agent_folder(config))
             .env("PATH", path)
             // Thinking costs seconds before every answer; a lookup in a meeting needs speed.
@@ -976,6 +1067,12 @@ fn read_agent(output: impl Read, shared: Arc<Shared>, tail: Arc<Mutex<VecDeque<S
         let Ok(event) = serde_json::from_str::<Value>(&line) else {
             continue;
         };
+        if let Some(id) = event["session_id"].as_str() {
+            let mut session = shared.session.lock().unwrap();
+            if session.as_deref() != Some(id) {
+                *session = Some(id.to_string());
+            }
+        }
         match event["type"].as_str() {
             // Partial messages: the answer shows while it is written.
             Some("stream_event") => {
@@ -1121,7 +1218,9 @@ fn finish_turn(shared: &Shared, event: &Value) {
     let mut question = None;
     let mut first_at = at;
     match turn {
-        Some(Turn::Warmup) | None => {
+        // The warm-up's card is the meeting from the calendar; key facts come from the meeting.
+        Some(Turn::Warmup) => list = None,
+        None => {
             found.clear();
             list = None;
         }
@@ -1253,9 +1352,15 @@ fn to_model(samples: &[f32], rate: u32) -> Vec<f32> {
     resample(samples.to_vec(), rate, MODEL_RATE).unwrap_or_default()
 }
 
-fn run(setup: Setup, sink: Sink, asked: Receiver<String>, stop: &AtomicBool) -> Result<()> {
+fn run(
+    setup: Setup,
+    sink: Sink,
+    asked: Receiver<String>,
+    stop: &AtomicBool,
+) -> Result<Option<Resume>> {
     let config = setup.config;
-    let started = now();
+    let resume = setup.resume;
+    let started = resume.as_ref().map_or_else(now, |r| r.started);
     let shared = Arc::new(Shared {
         sink: sink.clone(),
         status: Mutex::new(MeetingStatus {
@@ -1269,22 +1374,38 @@ fn run(setup: Setup, sink: Sink, asked: Receiver<String>, stop: &AtomicBool) -> 
             ..MeetingStatus::default()
         }),
         turns: Mutex::new(VecDeque::new()),
-        cards: AtomicUsize::new(0),
-        transcript: Mutex::new(Transcript::create(&setup.folder, started)),
+        cards: AtomicUsize::new(resume.as_ref().map_or(0, |r| r.cards)),
+        transcript: Mutex::new(match &resume {
+            Some(r) => Transcript::reopen(&r.transcript, now()),
+            None => Transcript::create(&setup.folder, started),
+        }),
         draft: Mutex::new(Draft {
             text: String::new(),
             ids: Vec::new(),
         }),
-        highlights: Mutex::new(Vec::new()),
+        highlights: Mutex::new(
+            resume
+                .as_ref()
+                .map(|r| r.highlights.clone())
+                .unwrap_or_default(),
+        ),
         stopping: AtomicBool::new(false),
+        session: Mutex::new(resume.as_ref().and_then(|r| r.session.clone())),
     });
     shared.status(|_| {});
 
-    // The agent first: it takes a few seconds to connect its tools, the audio is quick.
-    let mut agent = match Agent::start(&config, shared.clone()) {
+    // The agent first: it takes a few seconds to connect its tools, the audio is quick. Going
+    // on, it is the agent of before, which knows the meeting so far.
+    let session = shared.session.lock().unwrap().clone();
+    let mut agent = match Agent::start(&config, shared.clone(), session.as_deref()) {
         Ok(mut agent) => {
-            shared.turns.lock().unwrap().push_back(Turn::Warmup);
-            agent.send(&warmup(&crate::profile::current().souffleur.warmup_tools))?;
+            if session.is_none() {
+                shared.turns.lock().unwrap().push_back(Turn::Warmup);
+                agent.send(&warmup(
+                    &crate::profile::current().souffleur.warmup_tools,
+                    &when(now()),
+                ))?;
+            }
             Some(agent)
         }
         Err(e) => {
@@ -1349,7 +1470,7 @@ fn run(setup: Setup, sink: Sink, asked: Receiver<String>, stop: &AtomicBool) -> 
     }
 
     let mut lines = Lines {
-        next: 0,
+        next: resume.as_ref().map_or(0, |r| r.lines),
         unsent: Vec::new(),
         last_final: Instant::now(),
         others: VecDeque::new(),
@@ -1383,7 +1504,7 @@ fn run(setup: Setup, sink: Sink, asked: Receiver<String>, stop: &AtomicBool) -> 
                     }
                     replayed = Some(Instant::now());
                     // The rest goes now, not after a pause.
-                    lines.last_final = Instant::now() - FEED_PAUSE;
+                    lines.last_final = Instant::now() - FEED_LONG_PAUSE;
                 } else {
                     shared.status(|s| s.system_audio = "problem".into());
                 }
@@ -1439,7 +1560,7 @@ fn run(setup: Setup, sink: Sink, asked: Receiver<String>, stop: &AtomicBool) -> 
                 .unsent
                 .last()
                 .is_some_and(|l| l.trim_end().ends_with('?'));
-            if asked || words >= FEED_WORDS || lines.last_final.elapsed() >= FEED_PAUSE {
+            if feed_now(words, asked, lines.last_final.elapsed()) {
                 let message = std::mem::take(&mut lines.unsent).join("\n");
                 shared.turns.lock().unwrap().push_back(Turn::Listen);
                 agent.send(&message)?;
@@ -1466,6 +1587,13 @@ fn run(setup: Setup, sink: Sink, asked: Receiver<String>, stop: &AtomicBool) -> 
         }
     }
 
+    // Ending, at once: the panel says so while the last words and the final pass take their time.
+    shared.status(|s| {
+        s.ending = true;
+        s.activity = crate::text::pick("Wird beendet", "Ending").into();
+        s.mic_db = None;
+        s.system_db = None;
+    });
     // The last words still count.
     if let Some(segment) = mic.cut.flush() {
         finish(&mut mic, segment, &mut asr, &corrector, &shared, &mut lines);
@@ -1485,11 +1613,12 @@ fn run(setup: Setup, sink: Sink, asked: Receiver<String>, stop: &AtomicBool) -> 
     });
     let mut list = shared.highlights.lock().unwrap().clone();
     let path = shared.transcript.lock().unwrap().path.clone();
-    if lines.next > 0 {
+    let said = lines.next > resume.as_ref().map_or(0, |r| r.lines);
+    if said {
         shared.status(|s| {
             s.agent = "thinking".into();
             s.activity =
-                crate::text::pick("Das Wichtigste zum Schluss …", "Key facts at the end …").into();
+                crate::text::pick("Das Wichtigste zum Schluss", "Key facts at the end").into();
         });
         let transcript = std::fs::read_to_string(&path).unwrap_or_default();
         match final_highlights(&config, &transcript, &list) {
@@ -1505,23 +1634,82 @@ fn run(setup: Setup, sink: Sink, asked: Receiver<String>, stop: &AtomicBool) -> 
             s.activity = String::new();
         });
     }
-    let path = {
+    let (path, written) = {
         let mut transcript = shared.transcript.lock().unwrap();
         transcript.highlights(&list);
-        transcript.file = None;
-        transcript.path.clone()
+        let written = transcript.file.take().is_some();
+        (transcript.path.clone(), written)
     };
     eprintln!("souffleur: ended after {:.0} min", (now() - started) / 60.0);
     // Self-corrections out of the saved transcript, once, now that nothing is listening.
     let model = config.correct_model.clone();
+    let tidy_path = path.clone();
     let tidying = std::thread::Builder::new()
         .name("souffleur-tidy".into())
-        .spawn(move || tidy_transcript(&path, &model));
-    // Replays (`dictate souffleur x.wav`) end the process right after: wait for it there.
-    if replay && let Ok(t) = tidying {
-        let _ = t.join();
+        .spawn(move || tidy_transcript(&tidy_path, &model));
+    if let Ok(t) = tidying {
+        if replay {
+            // Replays (`dictate souffleur x.wav`) end the process right after: wait for it there.
+            let _ = t.join();
+        } else {
+            *TIDYING.lock().unwrap() = Some(t);
+        }
     }
-    Ok(())
+    let session = shared.session.lock().unwrap().clone();
+    Ok(written.then(|| Resume {
+        transcript: path,
+        session,
+        highlights: list,
+        lines: lines.next,
+        cards: shared.cards.load(Ordering::SeqCst),
+        started,
+    }))
+}
+
+/// Now, for the agent: "Donnerstag, 12.11.2026, 11:05 (UTC+01:00)".
+fn when(unix: f64) -> String {
+    let (y, mo, d, h, mi) = local(unix);
+    let days = days_from_civil(y, mo, d);
+    let weekday = crate::text::pick(
+        [
+            "Donnerstag",
+            "Freitag",
+            "Samstag",
+            "Sonntag",
+            "Montag",
+            "Dienstag",
+            "Mittwoch",
+        ],
+        [
+            "Thursday",
+            "Friday",
+            "Saturday",
+            "Sunday",
+            "Monday",
+            "Tuesday",
+            "Wednesday",
+        ],
+    )[days.rem_euclid(7) as usize];
+    // The local clock minus UTC, to the minute.
+    let local_secs = days * 86400 + i64::from(h) * 3600 + i64::from(mi) * 60;
+    let offset = (local_secs - (unix as i64 - (unix as i64).rem_euclid(60))) / 60;
+    let sign = if offset < 0 { '-' } else { '+' };
+    format!(
+        "{weekday}, {d:02}.{mo:02}.{y}, {h:02}:{mi:02} (UTC{sign}{:02}:{:02})",
+        offset.abs() / 60,
+        offset.abs() % 60
+    )
+}
+
+/// Days since 1970-01-01 (a Thursday) of a date in the proleptic Gregorian calendar.
+fn days_from_civil(y: i32, m: u32, d: u32) -> i64 {
+    let y = i64::from(y) - i64::from(m <= 2);
+    let era = y.div_euclid(400);
+    let yoe = y - era * 400;
+    let m = i64::from(m);
+    let doy = (153 * (if m > 2 { m - 3 } else { m + 9 }) + 2) / 5 + i64::from(d) - 1;
+    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    era * 146097 + doe - 719468
 }
 
 /// The final "Das Wichtigste" over the whole transcript (lines, cards, the list so far): one
@@ -1952,8 +2140,54 @@ mod tests {
             "mcp__crm__search".to_string(),
             "mcp__notion__notion-search".into(),
         ];
-        assert!(warmup(&tools).contains("(select:mcp__crm__search,mcp__notion__notion-search)"));
-        assert!(!warmup(&[]).contains("select:"));
+        let now = "Donnerstag, 12.11.2026, 11:05 (UTC+01:00)";
+        assert!(
+            warmup(&tools, now).contains("(select:mcp__crm__search,mcp__notion__notion-search)")
+        );
+        assert!(!warmup(&[], now).contains("select:"));
+        // The calendar's meeting needs the time.
+        assert!(warmup(&[], now).contains(now));
+    }
+
+    #[test]
+    fn scraps_wait_for_more_words_or_a_longer_pause() {
+        let pause = Duration::from_millis(1500);
+        assert!(!feed_now(3, false, pause), "\"So\" alone waits");
+        assert!(feed_now(3, true, Duration::ZERO), "a question goes at once");
+        assert!(feed_now(15, false, pause));
+        assert!(
+            !feed_now(15, false, Duration::from_millis(500)),
+            "still talking"
+        );
+        assert!(feed_now(45, false, Duration::ZERO), "a lot said");
+        assert!(
+            feed_now(3, false, Duration::from_secs(6)),
+            "nothing more came"
+        );
+    }
+
+    #[test]
+    fn going_on_takes_the_closing_key_facts_off_the_transcript() {
+        let head = "# Meeting 12.11.2026 11:05\n\n**11:05 Andere:** Hallo.\n\n";
+        let text = format!("{head}## Das Wichtigste\n\n- Angebot bis **Freitag**\n\n");
+        assert_eq!(without_closing_highlights(&text), head);
+        assert_eq!(without_closing_highlights(head), head);
+        // A card titled like the list, with lines after it, stays.
+        let card = format!("{head}## Das Wichtigste\n\n**11:06 Ich:** Weiter.\n\n");
+        assert_eq!(without_closing_highlights(&card), card);
+    }
+
+    #[test]
+    fn the_agent_knows_the_day_and_the_offset() {
+        assert_eq!(days_from_civil(1970, 1, 1), 0);
+        assert_eq!(days_from_civil(2026, 11, 12), 20769);
+        // 2026-11-12 10:05 UTC: the 12th in every time zone from UTC-10 to UTC+13.
+        assert!(when(1_794_477_900.0).starts_with("Donnerstag, 12.11.2026, "));
+        assert_eq!(days_from_civil(2024, 2, 29), 19782);
+        let at = 1_762_941_900.0; // 2025-11-12 10:05 UTC
+        let (_, _, _, h, _) = local(at);
+        let text = when(at);
+        assert!(text.contains(&format!("{h:02}:05 (UTC")), "{text}");
     }
 
     #[test]

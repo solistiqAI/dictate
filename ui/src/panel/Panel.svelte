@@ -20,6 +20,20 @@
 
 	const running = $derived(meeting?.running ?? false);
 	const status = $derived(meeting?.status);
+	// "Beenden" answers at once: the app needs a moment for the last words and the final key
+	// facts, the panel says so from the click on (`stopFor`: the meeting the click was for).
+	let stopFor = $state<number | null>(null);
+	const ending = $derived(running && (!!status?.ending || (stopFor !== null && stopFor === meeting?.started)));
+
+	function stop() {
+		stopFor = meeting?.started ?? null;
+		send({ type: 'stop_meeting' });
+	}
+
+	function resume() {
+		stopFor = null;
+		send({ type: 'resume_meeting' });
+	}
 	const cards = $derived(meeting ? [...meeting.cards].reverse() : []);
 	// Raised: the newest answer, and questions still being looked up above it.
 	const lead = $derived(cards.findIndex((c) => !c.pending));
@@ -40,7 +54,9 @@
 			? status?.problem || phases.problem
 			: status?.activity
 				? t('panel.activity', { activity: status.activity })
-				: phases[phase]
+				: ending
+					? t('panel.ending')
+					: phases[phase]
 	);
 	// A problem the agent did not report itself (e.g. the microphone) shows under the status.
 	const problem = $derived(phase !== 'problem' ? (status?.problem ?? '') : '');
@@ -74,10 +90,24 @@
 					<span class="elapsed" data-drag>{t('panel.ended')}</span>
 				{/if}
 			</div>
-			{#if running}
-				<button type="button" class="btn stop" onclick={() => send({ type: 'stop_meeting' })}>
+			{#if ending}
+				<button type="button" class="btn stop" disabled aria-busy="true">
+					<i class="spinner" aria-hidden="true"></i>{t('panel.ending')}
+				</button>
+			{:else if running}
+				<button type="button" class="btn stop" onclick={stop}>
 					<i class="square"></i>{t('common.stop')}
 				</button>
+			{:else if meeting?.resumable}
+				<button type="button" class="btn primary" title={t('panel.resume.title')} onclick={resume}
+					>{t('panel.resume')}</button
+				>
+				<button
+					type="button"
+					class="btn"
+					title={t('panel.new.title')}
+					onclick={() => send({ type: 'start_meeting' })}>{t('panel.new')}</button
+				>
 			{:else if cards.length}
 				<button type="button" class="btn primary" onclick={() => send({ type: 'start_meeting' })}
 					>{t('panel.start')}</button
@@ -96,8 +126,10 @@
 				<span class="agent" data-phase={phase} data-drag>
 					<i class="dot"></i><span class="said" data-drag>{said}</span>
 				</span>
-				<Meter label={t('panel.me')} who="me" db={status?.mic_db ?? null} />
-				<Meter label={t('panel.others')} who="others" db={status?.system_db ?? null} off={systemOff} />
+				{#if !ending}
+					<Meter label={t('panel.me')} who="me" db={status?.mic_db ?? null} />
+					<Meter label={t('panel.others')} who="others" db={status?.system_db ?? null} off={systemOff} />
+				{/if}
 			</div>
 			{#if status?.system_audio === 'silent'}
 				<p class="hint warn" title={t('panel.silent.title')}>
@@ -125,16 +157,24 @@
 			/>
 		{:else}
 			<div class="empty">
-				{#if running}
+				{#if running && ending}
+					<p>{t('panel.ending')}</p>
+				{:else if running}
 					<div class="ear" aria-hidden="true"><i></i><i></i><i></i></div>
 					<p>{t('panel.listening')}</p>
 					<p class="muted">{t('panel.ask_below')}</p>
 				{:else}
 					<p>{t('panel.idle')}</p>
 					<p class="muted">{t('panel.idle.hint')}</p>
-					<button type="button" class="btn primary big" onclick={() => send({ type: 'start_meeting' })}
-						>{t('panel.start')}</button
-					>
+					{#if meeting?.resumable}
+						<button type="button" class="btn primary big" title={t('panel.resume.title')} onclick={resume}
+							>{t('panel.resume')}</button
+						>
+					{:else}
+						<button type="button" class="btn primary big" onclick={() => send({ type: 'start_meeting' })}
+							>{t('panel.start')}</button
+						>
+					{/if}
 				{/if}
 			</div>
 		{/each}
@@ -240,6 +280,24 @@
 		height: 8px;
 		border-radius: 2px;
 		background: var(--err);
+	}
+	.stop:disabled {
+		opacity: 1;
+		color: var(--muted);
+		cursor: default;
+	}
+	.spinner {
+		width: 9px;
+		height: 9px;
+		border: 1.5px solid currentColor;
+		border-right-color: transparent;
+		border-radius: 50%;
+		animation: spin 0.8s linear infinite;
+	}
+	@keyframes spin {
+		to {
+			transform: rotate(360deg);
+		}
 	}
 	.icon {
 		display: grid;
@@ -412,7 +470,8 @@
 	}
 	@media (prefers-reduced-motion: reduce) {
 		.dot,
-		.ear i {
+		.ear i,
+		.spinner {
 			animation: none !important;
 		}
 	}

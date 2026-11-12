@@ -14,7 +14,8 @@ const fixtures = JSON.parse(readFileSync(new URL('./protocol.fixtures.json', imp
 const REQUESTS: Record<Request['type'], true> = {
 	load: true, copy: true, find: true, save_entry: true, config: true, words: true, replacements: true,
 	try: true, record_trigger: true, download_model: true, mic_test: true, open_privacy: true,
-	open_folder: true, drag: true, start_meeting: true, stop_meeting: true, ask_meeting: true,
+	open_folder: true, drag: true, start_meeting: true, stop_meeting: true, resume_meeting: true,
+	ask_meeting: true,
 	open_panel: true, open_page: true, open_url: true, open_meetings: true
 };
 const EVENTS: Record<Event['type'], true> = {

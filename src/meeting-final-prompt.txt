@@ -1,6 +1,6 @@
 A meeting just ended. Below is its transcript as speech recognition heard it ("Ich" = the person you work for, "Andere" = the others; names and terms can be misheard) with the cards a meeting assistant showed during it, and the key facts it kept pinned.
 
-Write the final "{highlights}" of the meeting, for the person to read afterwards: what was decided or agreed, open tasks with who does them and by when, dates, numbers and prices, next steps, and open questions or contradictions. Only what the transcript and the cards say; nothing invented, no guesses about misheard names.
+Write the final "{highlights}" of the meeting, for the person to read afterwards: what was decided or agreed, open tasks with who does them and by when, dates, numbers and prices, next steps, and open questions or contradictions. Only what the transcript and the cards say; nothing invented, no guesses about misheard names. Name the organisation or the person instead of "wir", "ihr" or "unsere": "Andere" includes the person's own colleagues.
 
 Answer in {language}, exactly in this form and nothing else:
 ## {highlights}

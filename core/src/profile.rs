@@ -95,6 +95,26 @@ pub struct Souffleur {
     pub folder: String,
 }
 
+impl Souffleur {
+    /// The built-in Claude Code tools the agent gets at all (`--tools`): those of
+    /// `allowed_tools` (`Bash(gh:*)` counts as `Bash`), plus `ToolSearch`, which loads the MCP
+    /// tools. Every other built-in tool (Edit, Write, Agent, …) is not even described to the
+    /// model: a meeting needs none, and their descriptions cost a third of every turn's context.
+    pub fn builtin_tools(&self) -> String {
+        let mut tools: Vec<&str> = Vec::new();
+        for tool in &self.allowed_tools {
+            let name = tool.split('(').next().unwrap_or_default().trim();
+            if !name.is_empty() && !name.starts_with("mcp__") && !tools.contains(&name) {
+                tools.push(name);
+            }
+        }
+        if !tools.contains(&"ToolSearch") {
+            tools.push("ToolSearch");
+        }
+        tools.join(",")
+    }
+}
+
 /// "Darüber diskutieren" (a spoken conversation): who answers.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
@@ -422,6 +442,24 @@ mod tests {
                 .allowed_tools
                 .contains(&"mcp__crm".to_string())
         );
+    }
+
+    #[test]
+    fn the_souffleur_gets_only_the_built_in_tools_it_may_use() {
+        let souffleur = Souffleur {
+            allowed_tools: [
+                "mcp__crm",
+                "Bash(gh:*)",
+                "Bash(git log:*)",
+                "Read",
+                "WebSearch",
+            ]
+            .map(String::from)
+            .to_vec(),
+            ..Souffleur::default()
+        };
+        assert_eq!(souffleur.builtin_tools(), "Bash,Read,WebSearch,ToolSearch");
+        assert_eq!(Souffleur::default().builtin_tools(), "ToolSearch");
     }
 
     #[test]

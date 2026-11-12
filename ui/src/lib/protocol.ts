@@ -95,6 +95,8 @@ export interface MeetingStatus {
 	system_audio: 'on' | 'off' | 'silent' | 'problem';
 	/** Shown in the panel when not empty. */
 	problem: string;
+	/** Asked to stop: the last words and the final key facts are still being done. */
+	ending: boolean;
 }
 
 export interface Meeting {
@@ -106,6 +108,8 @@ export interface Meeting {
 	status: MeetingStatus;
 	/** "Das Wichtigste": the agent's key facts of the meeting (short Markdown lines), most important first. */
 	highlights: string[];
+	/** Stopped, and it can go on ("Fortsetzen"). */
+	resumable: boolean;
 }
 
 export interface Word {
@@ -181,6 +185,7 @@ export type Request =
 	| { type: 'drag' }
 	| { type: 'start_meeting' }
 	| { type: 'stop_meeting' }
+	| { type: 'resume_meeting' }
 	| { type: 'ask_meeting'; text: string }
 	| { type: 'open_panel' }
 	| { type: 'open_page'; page: Page }

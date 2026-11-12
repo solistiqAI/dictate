@@ -229,6 +229,8 @@ pub fn run(settings: Settings) -> Result<()> {
     let mut panel: Option<MainWindow> = None;
     let mut meeting: Option<meeting::Handle> = None;
     let mut view = MeetingView::default();
+    // The meeting that stopped last, for "Fortsetzen".
+    let mut last_meeting: Option<meeting::Resume> = None;
     // What the last learned correction replaced, for "Rückgängig": the settings and, when the
     // replacements file changed, its old text.
     let mut undo: Option<(Config, Option<String>)> = None;
@@ -274,6 +276,7 @@ pub fn run(settings: Settings) -> Result<()> {
         let mut show_panel = false;
         // Start the Souffleur (menu, page, bar); it opens the panel.
         let mut begin_meeting = false;
+        let mut resume_meeting = false;
         // The meeting changed as a whole (started, ended): both pages get it again.
         let mut meeting_dirty = false;
         // The language of the menus changed (settings).
@@ -387,14 +390,18 @@ pub fn run(settings: Settings) -> Result<()> {
                         view.highlights = highlights.clone();
                         Some(PageEvent::MeetingHighlights { highlights })
                     }
-                    meeting::Update::Ended(reason) => {
+                    meeting::Update::Ended { problem, resume } => {
                         meeting = None;
                         view.running = false;
+                        view.resumable = resume.is_some();
+                        last_meeting = resume;
                         view.status.agent = "off".into();
+                        view.status.ending = false;
+                        view.status.activity = String::new();
                         view.status.mic_db = None;
                         view.status.system_db = None;
-                        if let Some(reason) = reason {
-                            view.status.problem = reason;
+                        if let Some(problem) = problem {
+                            view.status.problem = problem;
                         }
                         meeting_dirty = true;
                         if let Some((_, items)) = &tray {
@@ -846,6 +853,10 @@ pub fn run(settings: Settings) -> Result<()> {
                             m.stop();
                         }
                     }
+                    Request::ResumeMeeting => {
+                        resume_meeting = true;
+                        show_panel = true;
+                    }
                     Request::AskMeeting { text } => match &meeting {
                         Some(m) if !text.trim().is_empty() => m.ask(text.trim().to_string()),
                         Some(_) => {}
@@ -904,8 +915,31 @@ pub fn run(settings: Settings) -> Result<()> {
             quit_item = Some(edit_menu());
             shown = None;
         }
+        if resume_meeting && meeting.is_none() {
+            match last_meeting.take() {
+                Some(resume) => {
+                    meeting = Some(start_meeting(
+                        &config,
+                        &replacements_path,
+                        &proxy,
+                        Some(resume),
+                    ));
+                    // What it had stays in the panel; the clock keeps the first start.
+                    view.running = true;
+                    view.resumable = false;
+                    view.status = crate::protocol::MeetingStatus::default();
+                    meeting_dirty = true;
+                    show_panel = true;
+                    if let Some((_, items)) = &tray {
+                        items.meeting.set_text(text::stop_souffleur());
+                    }
+                }
+                None => begin_meeting = true,
+            }
+        }
         if begin_meeting && meeting.is_none() {
-            meeting = Some(start_meeting(&config, &replacements_path, &proxy));
+            meeting = Some(start_meeting(&config, &replacements_path, &proxy, None));
+            last_meeting = None;
             view = MeetingView {
                 running: true,
                 started: Some(history::now()),
@@ -1018,6 +1052,7 @@ fn start_meeting(
     config: &Config,
     replacements: &std::path::Path,
     proxy: &EventLoopProxy<Ui>,
+    resume: Option<meeting::Resume>,
 ) -> meeting::Handle {
     let proxy = std::sync::Mutex::new(proxy.clone());
     let sink: meeting::Sink = std::sync::Arc::new(move |update| {
@@ -1029,6 +1064,7 @@ fn start_meeting(
             replacements: replacements.to_path_buf(),
             folder: meeting::folder(),
             replay: None,
+            resume,
         },
         sink,
     )

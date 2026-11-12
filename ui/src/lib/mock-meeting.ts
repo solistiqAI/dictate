@@ -108,9 +108,18 @@ export function createMeeting(receive: (event: Event) => void, systemOn: () => b
 		mic_db: null,
 		system_db: null,
 		system_audio: 'off',
-		problem: ''
+		problem: '',
+		ending: false
 	});
-	let meeting: Meeting = { running: false, started: null, lines: [], cards: [], status: idle(), highlights: [] };
+	let meeting: Meeting = {
+		running: false,
+		started: null,
+		lines: [],
+		cards: [],
+		status: idle(),
+		highlights: [],
+		resumable: false
+	};
 	let speaking: Who | null = null;
 	let nextLine = 0;
 	let nextCard = 0;
@@ -221,7 +230,8 @@ export function createMeeting(receive: (event: Event) => void, systemOn: () => b
 				{ id: 2, at: start + 790, question: null, pending: false, ...ACCEPTANCE }
 			],
 			status: { ...idle(), agent: 'thinking', activity: 'Sucht in Notion', system_audio: systemAudio() },
-			highlights: [...(ACCEPTANCE.highlights ?? [])]
+			highlights: [...(ACCEPTANCE.highlights ?? [])],
+			resumable: false
 		};
 		nextLine = meeting.lines.length;
 		nextCard = meeting.cards.length;
@@ -244,6 +254,7 @@ export function createMeeting(receive: (event: Event) => void, systemOn: () => b
 				lines: [],
 				cards: [],
 				highlights: [],
+				resumable: false,
 				status: { ...idle(), agent: 'starting', system_audio: systemAudio() }
 			};
 			nextLine = 0;
@@ -255,16 +266,30 @@ export function createMeeting(receive: (event: Event) => void, systemOn: () => b
 			later(1500, () => play(0));
 		},
 		stop() {
+			if (!meeting.running || meeting.status.ending) return;
 			for (const t of timers) clearTimeout(t);
 			timers.clear();
 			clearInterval(ticker);
 			speaking = null;
 			busy = 0;
-			meeting.running = false;
-			meeting.lines = meeting.lines.map((l) => ({ ...l, live: false }));
-			meeting.cards = meeting.cards.filter((c) => !c.pending);
-			meeting.status = idle();
+			// As the app: ending at once, then the final key facts take a moment.
+			status({ ending: true, agent: 'thinking', activity: 'Das Wichtigste zum Schluss', mic_db: null, system_db: null });
+			later(params.get('ending') === 'hold' ? 3_600_000 : 2500, () => {
+				meeting.running = false;
+				meeting.resumable = true;
+				meeting.lines = meeting.lines.map((l) => ({ ...l, live: false }));
+				meeting.cards = meeting.cards.filter((c) => !c.pending);
+				meeting.status = idle();
+				snapshot();
+			});
+		},
+		resume() {
+			if (meeting.running || !meeting.resumable) return;
+			meeting.running = true;
+			meeting.resumable = false;
+			meeting.status = { ...idle(), agent: 'listening', system_audio: systemAudio() };
 			snapshot();
+			begin();
 		},
 		ask(question: string) {
 			if (!meeting.running) return;
