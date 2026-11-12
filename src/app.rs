@@ -61,7 +61,9 @@ the text as read and one change, answer YES if the change is most likely a finis
 correction (a real word or name that fits the sentence), or NO if it is most likely a word typed \
 halfway, a typo or an accident. A new word that looks like the start of a longer word which \
 would fit and sound more like the dictated one (\"Hendr\" for \"Hendrik\", \"Langs\" for \"LangSmith\") \
-is unfinished. Answer with YES or NO only.";
+is unfinished. A new word that sounds the same as the dictated one, about as long, only spelled \
+differently or in other case (\"Ramm\" → \"ram\" for RAM, \"Prot\" → \"Prod\") is finished. Answer \
+with YES or NO only.";
 const LEARN_STAYS: Duration = Duration::from_secs(8);
 /// How long the question for a correction with another first sound stays.
 const LEARN_ASK_STAYS: Duration = Duration::from_secs(12);
@@ -2420,6 +2422,27 @@ mod tests {
                 "Kubanetes",
                 "Kubernetes",
                 false,
+            ),
+            (
+                "Hat der Job jetzt mehr Ramm bekommen? Wenn ja, woher kam der Ramm?",
+                "Hat der Job jetzt mehr ram bekommen? Wenn ja, woher kam der ram?",
+                "Ramm",
+                "ram",
+                false,
+            ),
+            (
+                "Hat der Job jetzt mehr Ramm bekommen? Wenn ja, woher kam der Ramm?",
+                "Hat der Job jetzt mehr RAM bekommen? Wenn ja, woher kam der RAM?",
+                "Ramm",
+                "RAM",
+                false,
+            ),
+            (
+                "Hat der Job jetzt mehr Ramm bekommen?",
+                "Hat der Job jetzt mehr Ra bekommen?",
+                "Ramm",
+                "Ra",
+                true,
             ),
         ];
         let mut wrong = 0;
