@@ -1,6 +1,5 @@
-//! A tiny HTTP server on 127.0.0.1 so a web page on this Mac (a web app with a dictation button,
-//! e.g. agent-fleet's) can ask Dictate to
-//! start or stop a recording and see whether Dictate is there at all.
+//! A tiny HTTP server on 127.0.0.1 so a web page on this Mac (a web app with a dictation button)
+//! can ask Dictate to start or stop a recording and see whether Dictate is there at all.
 //!
 //! - `GET /status` → `{"app":"dictate","version":…,"ready":bool,"recording":bool}`
 //! - `POST /toggle` → starts a hands-free recording or stops the running one (like a tap on a
