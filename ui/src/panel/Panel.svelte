@@ -66,8 +66,23 @@
 	let showHighlights = $state(true);
 	const highlights = $derived(meeting?.highlights ?? []);
 	let question = $state('');
+	// The question's height on its own lines (a hidden copy measures it): the field grows to it
+	// while the mouse is over it or it has focus, up to eight lines, and is one line otherwise.
+	let full = $state(18);
 
-	// Enter in the field sends the question.
+	// Enter sends the question, Shift+Enter starts a new line.
+	function key(event: KeyboardEvent) {
+		if (event.key !== 'Enter' || event.shiftKey || event.isComposing) return;
+		event.preventDefault();
+		(event.currentTarget as HTMLTextAreaElement).form?.requestSubmit();
+	}
+
+	// Back to one line: from the question's start, as a one-line field shows it.
+	function rest(event: TransitionEvent) {
+		const field = event.currentTarget as HTMLTextAreaElement;
+		if (document.activeElement !== field && field.clientHeight < 30) field.scrollTop = 0;
+	}
+
 	function submit(event: SubmitEvent) {
 		event.preventDefault();
 		const text = question.trim();
@@ -142,74 +157,86 @@
 		{/if}
 	</header>
 
-	{#if highlights.length}
-		<Highlights items={highlights} bind:open={showHighlights} />
-	{/if}
+	<!-- Between header and question field; scrolls as a whole only when the window is too short. -->
+	<div class="body">
+		{#if highlights.length}
+			<Highlights items={highlights} bind:open={showHighlights} />
+		{/if}
 
-	<div class="cards">
-		{#each cards as card, i (card.id)}
-			<Card
-				{card}
-				{now}
-				newest={lead === -1 || i <= lead}
-				fresh={card.at > opened}
-				activity={i === working ? (status?.activity ?? '') : ''}
-			/>
-		{:else}
-			<div class="empty">
-				{#if running && ending}
-					<p>{t('panel.ending')}</p>
-				{:else if running}
-					<div class="ear" aria-hidden="true"><i></i><i></i><i></i></div>
-					<p>{t('panel.listening')}</p>
-					<p class="muted">{t('panel.ask_below')}</p>
-				{:else}
-					<p>{t('panel.idle')}</p>
-					<p class="muted">{t('panel.idle.hint')}</p>
-					{#if meeting?.resumable}
-						<button type="button" class="btn primary big" title={t('panel.resume.title')} onclick={resume}
-							>{t('panel.resume')}</button
-						>
+		<div class="cards">
+			{#each cards as card, i (card.id)}
+				<Card
+					{card}
+					{now}
+					newest={lead === -1 || i <= lead}
+					fresh={card.at > opened}
+					activity={i === working ? (status?.activity ?? '') : ''}
+				/>
+			{:else}
+				<div class="empty">
+					{#if running && ending}
+						<p>{t('panel.ending')}</p>
+					{:else if running}
+						<div class="ear" aria-hidden="true"><i></i><i></i><i></i></div>
+						<p>{t('panel.listening')}</p>
+						<p class="muted">{t('panel.ask_below')}</p>
 					{:else}
-						<button type="button" class="btn primary big" onclick={() => send({ type: 'start_meeting' })}
-							>{t('panel.start')}</button
-						>
+						<p>{t('panel.idle')}</p>
+						<p class="muted">{t('panel.idle.hint')}</p>
+						{#if meeting?.resumable}
+							<button type="button" class="btn primary big" title={t('panel.resume.title')} onclick={resume}
+								>{t('panel.resume')}</button
+							>
+						{:else}
+							<button type="button" class="btn primary big" onclick={() => send({ type: 'start_meeting' })}
+								>{t('panel.start')}</button
+							>
+						{/if}
 					{/if}
-				{/if}
-			</div>
-		{/each}
+				</div>
+			{/each}
+		</div>
+
+		{#if running || lines.length}
+			<Transcript {lines} bind:open={showTranscript} />
+		{/if}
 	</div>
 
-	{#if running || lines.length}
-		<Transcript {lines} bind:open={showTranscript} />
-	{/if}
-
 	<form class="ask" onsubmit={submit}>
-		<input
-			class="field"
-			type="text"
-			placeholder={running ? t('panel.ask.placeholder') : t('panel.ask.off')}
-			aria-label={t('panel.ask')}
-			disabled={!running}
-			bind:value={question}
-		/>
-		<button
-			type="submit"
-			class="send"
-			title={t('panel.ask.send')}
-			aria-label={t('panel.ask.send')}
-			disabled={!running || !question.trim()}
-		>
-			<Icon name="send" size={14} />
-		</button>
+		<!-- Anchored at the bottom: the field grows upward over the content, the bar keeps its height. -->
+		<div class="box" class:tall={full > 18} class:off={!running}>
+			<div class="mirror" aria-hidden="true" bind:offsetHeight={full}>{question + ' '}</div>
+			<textarea
+				class="question"
+				rows="1"
+				style:--full="{full}px"
+				placeholder={running ? t('panel.ask.placeholder') : t('panel.ask.off')}
+				aria-label={t('panel.ask')}
+				disabled={!running}
+				bind:value={question}
+				onkeydown={key}
+				ontransitionend={rest}
+			></textarea>
+			<button
+				type="submit"
+				class="send"
+				title={t('panel.ask.send')}
+				aria-label={t('panel.ask.send')}
+				disabled={!running || !question.trim()}
+			>
+				<Icon name="send" size={14} />
+			</button>
+		</div>
 	</form>
 </div>
 
 <style>
+	/* Header and question field stay put; only what is between them scrolls. */
 	.panel {
 		display: flex;
 		flex-direction: column;
 		height: 100%;
+		overflow: hidden;
 		background: var(--bg);
 	}
 	header {
@@ -375,9 +402,19 @@
 	.err {
 		color: var(--err);
 	}
-	.cards {
+	.body {
 		flex: 1;
 		min-height: 0;
+		display: flex;
+		flex-direction: column;
+		overflow-y: auto;
+		overscroll-behavior: contain;
+	}
+	/* The cards take what is left and scroll on their own; with long key facts in a short window
+	   they keep room for an answer and the body scrolls instead. */
+	.cards {
+		flex: 1 0 0;
+		min-height: 150px;
 		overflow-y: auto;
 		padding-top: 8px;
 	}
@@ -438,23 +475,82 @@
 	.ask {
 		flex: none;
 		position: relative;
-		padding: 8px 10px 10px;
+		z-index: 1;
+		height: 51px;
 		border-top: 1px solid var(--separator);
 	}
-	.ask .field {
-		width: 100%;
-		height: 32px;
-		padding-right: 36px;
+	.box {
+		position: absolute;
+		left: 10px;
+		right: 10px;
+		bottom: 10px;
+	}
+	/* The frame draws the field; the text inside is one line (18 px) at rest and grows to its
+	   lines while hovered or focused, eight at most, then scrolls. */
+	.box {
+		padding: 6px 36px 6px 10px;
+		border: 1px solid var(--border);
 		border-radius: 8px;
 		background: var(--surface);
+		transition: box-shadow 0.14s;
 	}
-	.ask .field:disabled {
+	.box:focus-within {
+		border-color: var(--accent);
+		box-shadow: 0 0 0 3px var(--accent-soft);
+	}
+	.tall:not(.off):hover {
+		box-shadow: 0 6px 22px rgb(0 0 0 / 0.18);
+	}
+	.tall:focus-within {
+		box-shadow:
+			0 0 0 3px var(--accent-soft),
+			0 6px 22px rgb(0 0 0 / 0.18);
+	}
+	.off {
 		opacity: 0.6;
+	}
+	.question,
+	.mirror {
+		padding: 0;
+		border: 0;
+		font-size: 13px;
+		line-height: 18px;
+		white-space: pre-wrap;
+		overflow-wrap: break-word;
+	}
+	.question {
+		display: block;
+		width: 100%;
+		height: 18px;
+		margin: 0;
+		resize: none;
+		overflow-y: hidden;
+		background: transparent;
+		outline: none;
+		transition: height 0.14s ease;
+	}
+	.mirror {
+		position: absolute;
+		left: 10px;
+		right: 36px;
+		bottom: 6px;
+		visibility: hidden;
+		pointer-events: none;
+	}
+	/* A short pause before growing, so the mouse passing by does not make it jump. */
+	.box:hover .question:not(:disabled),
+	.question:focus {
+		height: clamp(18px, var(--full), 144px);
+		overflow-y: auto;
+		transition: height 0.14s ease 0.1s;
+	}
+	.question:focus {
+		transition-delay: 0s;
 	}
 	.send {
 		position: absolute;
-		right: 15px;
-		top: 13px;
+		right: 4px;
+		bottom: 4px;
 		display: grid;
 		place-items: center;
 		width: 22px;
@@ -473,6 +569,9 @@
 		.ear i,
 		.spinner {
 			animation: none !important;
+		}
+		.question {
+			transition: none !important;
 		}
 	}
 </style>

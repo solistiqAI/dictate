@@ -91,8 +91,9 @@
 		color: var(--muted);
 		font-variant-numeric: tabular-nums;
 	}
+	/* Less of the transcript in a short window, so the cards keep their room. */
 	.lines {
-		height: 196px;
+		height: min(196px, 30vh);
 		overflow-y: auto;
 		padding: 0 12px 10px;
 		font-size: 12px;
