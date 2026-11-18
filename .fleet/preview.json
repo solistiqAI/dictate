@@ -1,0 +1,5 @@
+{
+	"command": "[ -d node_modules ] || npm ci; npm run dev -- --port $PORT",
+	"cwd": "ui",
+	"path": "/"
+}
