@@ -31,6 +31,9 @@ pub const CLOSE: isize = 2;
 pub const UNDO: isize = 3;
 /// Learn a correction the overlay asked about.
 pub const REMEMBER: isize = 4;
+/// Learn only the part of the correction that changed („EAP“ → „erp“ for „EAP-System“ →
+/// „erp-System“), instead of the whole one.
+pub const ALTERNATIVE: isize = 5;
 /// The shortcuts beside the pill while recording.
 pub const SETTINGS: isize = 10;
 pub const SOUFFLEUR: isize = 11;

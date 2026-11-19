@@ -148,6 +148,8 @@ texts! {
     undo => "Rückgängig", "Undo";
     undone => "Rückgängig ✓", "Undone ✓";
     learned => "Gelernt", "Learned";
+    /// Closes the card of a learned correction and keeps it.
+    ok => "OK", "OK";
     remember_question => "Merken?", "Remember?";
     remember => "Merken", "Remember";
     dont_remember => "Nicht merken", "Don't remember";
@@ -262,6 +264,14 @@ pub fn saved_learned(n: usize) -> String {
         (Lang::En, 1) => "Saved, learned 1 correction".into(),
         (Lang::En, n) => format!("Saved, learned {n} corrections"),
     }
+}
+
+/// The button that learns only the part of a correction that changed: Nur „EAP“ → „erp“.
+pub fn only_change(heard: &str, meant: &str) -> String {
+    pick(
+        format!("Nur {}", quoted_change(heard, meant)),
+        format!("Only {}", quoted_change(heard, meant)),
+    )
 }
 
 /// „heard“ → „meant“ (German quotes) or “heard” → “meant”.

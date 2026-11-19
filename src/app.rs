@@ -238,6 +238,9 @@ pub fn run(settings: Settings) -> Result<()> {
     let mut undo: Option<(Config, Option<String>)> = None;
     // Corrections the overlay asks about ("Merken"), until the next one.
     let mut offered: Vec<Candidate> = Vec::new();
+    // What the card's "Nur „EAP“ → „erp“" learns instead (the shown correction narrowed to the
+    // part that changed, the others as they were), and whether it replaces a learned one.
+    let mut alternative: Option<(Vec<Candidate>, bool)> = None;
     let data = asr::data_dir();
     let mut history = History::load(
         &data.join("history.jsonl"),
@@ -269,6 +272,7 @@ pub fn run(settings: Settings) -> Result<()> {
             hide_overlay_at = None;
             // A question left unanswered: nothing learned, nothing left for a later click.
             offered.clear();
+            alternative = None;
         }
         let wake = hide_overlay_at.unwrap_or(now + Duration::from_secs(1));
         *control_flow = ControlFlow::WaitUntil(wake.min(now + Duration::from_secs(1)));
@@ -445,6 +449,7 @@ pub fn run(settings: Settings) -> Result<()> {
                 let Some(o) = &overlay else { return };
                 hide_overlay_at = None;
                 offered.clear();
+                alternative = None;
                 match show {
                     Show::Live {
                         levels,
@@ -513,28 +518,55 @@ pub fn run(settings: Settings) -> Result<()> {
                         hide_overlay_at = Some(Instant::now() + Duration::from_millis(1200));
                     }
                     overlay::UNDO => {
+                        alternative = None;
                         let note = match undo.take() {
-                            Some((old, rules)) => {
-                                let restored = rules
-                                    .map_or(Ok(()), |text| std::fs::write(&replacements_path, text))
-                                    .map_err(anyhow::Error::from)
-                                    .and_then(|()| old.save(&Config::path()));
-                                match restored {
-                                    Ok(()) => {
-                                        let _ = tx.send(TapEvent::Configure(Box::new(old.clone())));
-                                        config = old;
-                                        page_dirty = true;
-                                        text::undone().to_string()
-                                    }
-                                    Err(e) => format!("{e:#}"),
+                            Some((old, rules)) => match unlearn(&old, rules, &replacements_path) {
+                                Ok(()) => {
+                                    let _ = tx.send(TapEvent::Configure(Box::new(old.clone())));
+                                    config = old;
+                                    page_dirty = true;
+                                    text::undone().to_string()
                                 }
-                            }
+                                Err(e) => format!("{e:#}"),
+                            },
                             None => String::new(),
                         };
                         o.show(mtm, Left::Symbol(&note), "", &[]);
                         hide_overlay_at = Some(Instant::now() + Duration::from_millis(1200));
                     }
+                    overlay::ALTERNATIVE => {
+                        let Some((chosen, replaces)) = alternative.take() else {
+                            o.hide();
+                            return;
+                        };
+                        for c in std::mem::take(&mut offered) {
+                            eprintln!(
+                                "learn: not learned, the narrower one instead: {}",
+                                c.describe()
+                            );
+                        }
+                        // The whole correction was learned already: take it back first.
+                        if replaces && let Some((old, rules)) = undo.take() {
+                            if let Err(e) = unlearn(&old, rules, &replacements_path) {
+                                o.show(mtm, Left::Symbol("!"), &format!("{e:#}"), &[]);
+                                hide_overlay_at = Some(Instant::now() + Duration::from_secs(4));
+                                return;
+                            }
+                            let _ = tx.send(TapEvent::Configure(Box::new(old.clone())));
+                            config = old;
+                            page_dirty = true;
+                        }
+                        eprintln!(
+                            "learn: the narrower correction instead: {}",
+                            chosen[0].describe()
+                        );
+                        let _ = proxy.send_event(Ui::Learn {
+                            sure: chosen,
+                            ask: Vec::new(),
+                        });
+                    }
                     overlay::REMEMBER => {
+                        alternative = None;
                         let chosen = std::mem::take(&mut offered);
                         match chosen.is_empty() {
                             true => o.hide(),
@@ -551,7 +583,9 @@ pub fn run(settings: Settings) -> Result<()> {
                         }
                     }
                     _ => {
-                        // "Nicht merken" on the question: nothing is learned.
+                        // "Nicht merken" on the question: nothing is learned; "OK" on a learned
+                        // one keeps it.
+                        alternative = None;
                         for c in std::mem::take(&mut offered) {
                             eprintln!("learn: not learned, declined: {}", c.describe());
                         }
@@ -565,19 +599,32 @@ pub fn run(settings: Settings) -> Result<()> {
                 ask,
             }) => {
                 let Some(o) = &overlay else { return };
+                // The first correction (the one on the card) with only its changed part.
+                let words = config.vocabulary();
+                let narrowed = |list: &[Candidate]| {
+                    let narrow = learn::narrower(list.first()?, &words)?;
+                    let label = text::only_change(&narrow.heard, &narrow.meant);
+                    let mut chosen = vec![narrow];
+                    chosen.extend_from_slice(&list[1..]);
+                    Some((chosen, label))
+                };
                 let Some(first) = candidates.first() else {
                     // Only doubtful ones: the overlay asks, nothing is learned unless clicked.
                     let Some(first) = ask.first() else { return };
                     let more = text::more_corrections(ask.len() - 1);
+                    let narrow = narrowed(&ask);
+                    let mut buttons = vec![(text::dont_remember(), overlay::CLOSE)];
+                    if let Some((_, label)) = &narrow {
+                        buttons.push((label.as_str(), overlay::ALTERNATIVE));
+                    }
+                    buttons.push((text::remember(), overlay::REMEMBER));
                     o.show(
                         mtm,
                         Left::Symbol(text::remember_question()),
                         &format!("{}{more}", first.describe()),
-                        &[
-                            (text::dont_remember(), overlay::CLOSE),
-                            (text::remember(), overlay::REMEMBER),
-                        ],
+                        &buttons,
                     );
+                    alternative = narrow.map(|(chosen, _)| (chosen, false));
                     offered = ask;
                     hide_overlay_at = Some(Instant::now() + LEARN_ASK_STAYS);
                     *control_flow = ControlFlow::WaitUntil(hide_overlay_at.unwrap());
@@ -588,6 +635,7 @@ pub fn run(settings: Settings) -> Result<()> {
                     eprintln!("learn: not asked (learned others): {}", c.describe());
                 }
                 let more = text::more_corrections(candidates.len() - 1);
+                let narrow = narrowed(&candidates);
                 // Learned right away; "Rückgängig" for the rare wrong guess.
                 match remember(&candidates, &config, &replacements_path) {
                     Ok((new, rules)) => {
@@ -602,13 +650,21 @@ pub fn run(settings: Settings) -> Result<()> {
                     }
                 }
                 let text = format!("{}{more}", first.describe());
-                o.show(
-                    mtm,
-                    Left::Symbol(text::learned()),
-                    &text,
-                    &[(text::undo(), overlay::UNDO)],
-                );
-                hide_overlay_at = Some(Instant::now() + LEARN_STAYS);
+                // "Nur „EAP“ → „erp“" when part of the correction stayed as it was; "OK" closes.
+                let mut buttons = Vec::new();
+                if let Some((_, label)) = &narrow {
+                    buttons.push((label.as_str(), overlay::ALTERNATIVE));
+                }
+                buttons.push((text::undo(), overlay::UNDO));
+                buttons.push((text::ok(), overlay::CLOSE));
+                o.show(mtm, Left::Symbol(text::learned()), &text, &buttons);
+                // A choice to read takes as long as a question.
+                let stays = match narrow.is_some() {
+                    true => LEARN_ASK_STAYS,
+                    false => LEARN_STAYS,
+                };
+                alternative = narrow.map(|(chosen, _)| (chosen, true));
+                hide_overlay_at = Some(Instant::now() + stays);
                 *control_flow = ControlFlow::WaitUntil(hide_overlay_at.unwrap());
             }
             Event::UserEvent(Ui::Captured(captured)) => {
@@ -1236,6 +1292,14 @@ fn edit_menu() -> MenuId {
         }
     }
     id
+}
+
+/// Takes a learned correction back: the replacements file and the settings as before it.
+fn unlearn(old: &Config, rules: Option<String>, replacements: &std::path::Path) -> Result<()> {
+    if let Some(text) = rules {
+        std::fs::write(replacements, text)?;
+    }
+    old.save(&Config::path())
 }
 
 /// Saves corrections: words into the dictionary (`config.toml`), rules into the replacements

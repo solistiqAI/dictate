@@ -41,6 +41,8 @@ const SIDE_H: f64 = 28.0;
 /// Buttons the card can show at once.
 const BUTTONS: usize = 3;
 const BUTTON_W: f64 = 124.0;
+/// The widest a button grows for its title (three must fit in the card).
+const BUTTON_MAX_W: f64 = 240.0;
 
 type Callback = Box<dyn Fn(isize)>;
 
@@ -372,20 +374,26 @@ impl Overlay {
             NSPoint::new(20.0, text_y),
             NSSize::new(text_w, text_h),
         ));
-        // Right-aligned, the last one at the right edge.
+        // Right-aligned, the last one at the right edge; a longer title („Nur „EAP“ → „erp““)
+        // widens its button.
         let shown = buttons.len().min(BUTTONS);
-        for (i, button) in self.buttons.iter().enumerate() {
+        let mut right = WIDTH - 20.0;
+        for (i, button) in self.buttons.iter().enumerate().rev() {
             button.setHidden(i >= shown);
-            let Some((title, tag)) = buttons.get(i) else {
+            let Some((title, tag)) = buttons.get(i).filter(|_| i < shown) else {
                 continue;
             };
             button.setTitle(&NSString::from_str(title));
             button.setTag(*tag);
-            let x = WIDTH - 20.0 - (shown - i) as f64 * (BUTTON_W + 8.0) + 8.0;
+            button.sizeToFit();
+            let w = (button.frame().size.width + 16.0)
+                .ceil()
+                .clamp(BUTTON_W, BUTTON_MAX_W);
             button.setFrame(NSRect::new(
-                NSPoint::new(x, 10.0),
-                NSSize::new(BUTTON_W, 28.0),
+                NSPoint::new(right - w, 10.0),
+                NSSize::new(w, 28.0),
             ));
+            right -= w + 8.0;
         }
 
         // The shortcuts: small round buttons left and right of the pill; the Souffleur's one

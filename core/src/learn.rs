@@ -99,15 +99,78 @@ fn sorted<S: AsRef<str>>(old: &str, new: &str, vocabulary: &[S]) -> (Vec<Candida
         if out.iter().any(|c| c.heard == heard && c.meant == meant) {
             continue;
         }
-        let kind = match suggest(&heard, &meant, vocabulary) {
-            // "Dry fliegen" → "drive liegen": a rule for these words, not a dictionary entry
-            // that the decoder would push into every sentence.
-            Kind::Dictionary if !term(&meant) => Kind::Replacement,
-            kind => kind,
-        };
+        let kind = kind(&heard, &meant, vocabulary);
         out.push(Candidate { heard, meant, kind });
     }
     (out, skipped)
+}
+
+/// Dictionary or rule for a correction found in a text.
+fn kind<S: AsRef<str>>(heard: &str, meant: &str, vocabulary: &[S]) -> Kind {
+    match suggest(heard, meant, vocabulary) {
+        // "Dry fliegen" → "drive liegen": a rule for these words, not a dictionary entry
+        // that the decoder would push into every sentence.
+        Kind::Dictionary if !term(meant) => Kind::Replacement,
+        kind => kind,
+    }
+}
+
+/// The same correction without the words or hyphenated parts that stayed as they were:
+/// „EAP-System“ → „erp-System“ gives „EAP“ → „erp“, „Cloud Code“ → „Claude Code“ gives „Cloud“ →
+/// „Claude“. Offered beside the whole one, which only ever matches the whole compound. `None`
+/// when every part changed, or when what is left looks like a rewording.
+pub fn narrower<S: AsRef<str>>(c: &Candidate, vocabulary: &[S]) -> Option<Candidate> {
+    let (h, m) = (parts(&c.heard), parts(&c.meant));
+    let same = |a: (usize, usize), b: (usize, usize)| {
+        letters(&c.heard[a.0..a.1]) == letters(&c.meant[b.0..b.1])
+    };
+    let shorter = h.len().min(m.len());
+    let mut front = 0;
+    while front < shorter && same(h[front], m[front]) {
+        front += 1;
+    }
+    let mut back = 0;
+    while front + back < shorter && same(h[h.len() - 1 - back], m[m.len() - 1 - back]) {
+        back += 1;
+    }
+    if front + back == 0 || front + back >= shorter {
+        return None;
+    }
+    let span = |text: &str, p: &[(usize, usize)]| {
+        text[p[front].0..p[p.len() - 1 - back].1]
+            .trim_matches(|c: char| !c.is_alphanumeric())
+            .to_string()
+    };
+    let (heard, meant) = (span(&c.heard, &h), span(&c.meant, &m));
+    if heard.is_empty() || meant.is_empty() || letters(&heard) == letters(&meant) {
+        return None;
+    }
+    if doubt(&heard, &meant) == Some(Doubt::TooDifferent) {
+        return None;
+    }
+    let kind = kind(&heard, &meant, vocabulary);
+    Some(Candidate { heard, meant, kind })
+}
+
+/// Byte spans of the words and hyphenated parts of a phrase.
+fn parts(phrase: &str) -> Vec<(usize, usize)> {
+    let mut out = Vec::new();
+    let mut start = None;
+    for (i, ch) in phrase.char_indices() {
+        let separator = ch.is_whitespace() || ch == '-';
+        match (separator, start) {
+            (true, Some(s)) => {
+                out.push((s, i));
+                start = None;
+            }
+            (false, None) => start = Some(i),
+            _ => {}
+        }
+    }
+    if let Some(s) = start {
+        out.push((s, phrase.len()));
+    }
+    out
 }
 
 /// Whether a phrase is a name or term for the dictionary: one word, or words that each carry a
@@ -397,6 +460,48 @@ mod tests {
         assert_eq!(
             kind("Das läuft auf ServerProad.", "Das läuft auf Server Prod."),
             Kind::Dictionary
+        );
+    }
+
+    #[test]
+    fn offers_only_the_part_that_changed() {
+        let narrow = |old: &str, new: &str| {
+            let found = candidates(old, new, &[] as &[&str]);
+            narrower(&found[0], &[] as &[&str]).map(|c| (c.heard, c.meant, c.kind))
+        };
+        assert_eq!(
+            narrow("Das EAP-System läuft.", "Das erp-System läuft."),
+            Some(("EAP".into(), "erp".into(), Kind::Replacement))
+        );
+        assert_eq!(
+            narrow(
+                "Der Merch-Request ist offen.",
+                "Der Merge-Request ist offen."
+            ),
+            Some(("Merch".into(), "Merge".into(), Kind::Replacement))
+        );
+        // Words that stayed, on either side of a hyphen.
+        assert_eq!(
+            narrow("die Server-Prot-Datenbank", "die Server-Prod-Datenbank"),
+            Some(("Prot".into(), "Prod".into(), Kind::Replacement))
+        );
+        // Every part changed: nothing narrower.
+        assert_eq!(
+            narrow("Das soll in Dry fliegen.", "Das soll in drive liegen."),
+            None
+        );
+        assert_eq!(narrow("Wir deckläuen heute", "Wir deployen heute"), None);
+        // What is left is a rewording.
+        assert_eq!(narrow("Das Montag-Meeting", "Das Dienstag-Meeting"), None);
+        // Only case or punctuation in the part.
+        let c = Candidate {
+            heard: "Cloud Code".into(),
+            meant: "Claude Code".into(),
+            kind: Kind::Replacement,
+        };
+        assert_eq!(
+            narrower(&c, DICTIONARY).map(|c| c.describe()),
+            Some("„Cloud“ → „Claude“".into())
         );
     }
 

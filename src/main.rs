@@ -102,6 +102,10 @@ enum Command {
         /// As the question about a correction, with "Nicht merken" / "Merken".
         #[arg(long)]
         ask: bool,
+        /// With `--learn` or `--ask`: the button that learns only the changed part, e.g.
+        /// `--only "EAP=>erp"` for „Nur „EAP“ → „erp““.
+        #[arg(long)]
+        only: Option<String>,
         /// With "Einstellungen" and "Souffleur" beside the pill, as while recording; a time
         /// (e.g. 12:03) as while the Souffleur runs.
         #[arg(long, num_args = 0..=1, default_missing_value = "")]
@@ -413,29 +417,37 @@ fn main() -> Result<()> {
             actions,
             learn,
             ask,
+            only,
             strike,
             shortcuts,
         }) => {
-            let buttons: &[(&str, isize)] = if learn {
-                &[(text::undo(), overlay::UNDO)]
+            let only = only.map(|pair| match pair.split_once("=>") {
+                Some((heard, meant)) => text::only_change(heard.trim(), meant.trim()),
+                None => pair,
+            });
+            let only = only.as_deref().map(|label| (label, overlay::ALTERNATIVE));
+            let buttons: Vec<(&str, isize)> = if learn {
+                only.into_iter()
+                    .chain([(text::undo(), overlay::UNDO), (text::ok(), overlay::CLOSE)])
+                    .collect()
             } else if ask {
-                &[
-                    (text::dont_remember(), overlay::CLOSE),
-                    (text::remember(), overlay::REMEMBER),
-                ]
+                std::iter::once((text::dont_remember(), overlay::CLOSE))
+                    .chain(only)
+                    .chain([(text::remember(), overlay::REMEMBER)])
+                    .collect()
             } else if actions {
-                &[
+                vec![
                     (text::copy(), overlay::COPY),
                     (text::close(), overlay::CLOSE),
                 ]
             } else {
-                &[]
+                Vec::new()
             };
             overlay_preview(
                 &out,
                 symbol.as_deref(),
                 &text,
-                buttons,
+                &buttons,
                 &strike,
                 shortcuts.as_deref(),
             )
